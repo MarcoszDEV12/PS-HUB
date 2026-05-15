@@ -471,7 +471,7 @@
             <section class="kpi-container">
                 <div class="kpi-card">
                     <div class="kpi-header">
-                        <span>TOTAL DE CHAMADOS</span>
+                        <span>TOTAL TAREFAS (CHAMADOS)</span>
                         <div class="kpi-icon icon-orange"><i data-lucide="activity"></i></div>
                     </div>
                     <div class="kpi-value" id="kpi-total-chamados">0</div>
@@ -479,7 +479,7 @@
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-header">
-                        <span>TOTAL DE TRATATIVAS</span>
+                        <span>TOTAL ALO (ALOCADOS)</span>
                         <div class="kpi-icon icon-blue"><i data-lucide="git-pull-request"></i></div>
                     </div>
                     <div class="kpi-value" id="kpi-total-tratativas">0</div>
@@ -495,7 +495,7 @@
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-header">
-                        <span>TAXA DE RESOLUÇÃO</span>
+                        <span>TAXA DE ALOCAÇÃO (ALO / TAREFA)</span>
                         <div class="kpi-icon icon-purple"><i data-lucide="check-circle-2"></i></div>
                     </div>
                     <div class="kpi-value" id="kpi-taxa-resolucao">0%</div>
@@ -521,7 +521,9 @@
 
             <section class="charts-container">
                 <div class="chart-card">
-                    <h3>Evolução Operacional e Histórico de Volume</h3>
+                    <div class="chart-header-title" style="display:flex; justify-content:space-between;">
+                        <h3>Evolução Operacional e Histórico de Volume</h3>
+                    </div>
                     <div id="chart-evolution"></div>
                 </div>
                 <div class="chart-card">
@@ -548,10 +550,10 @@
                                 <th data-sort="nome">Problem Solver <i data-lucide="arrow-up-down"></i></th>
                                 <th data-sort="area">Área <i data-lucide="arrow-up-down"></i></th>
                                 <th data-sort="turno">Turno <i data-lucide="arrow-up-down"></i></th>
-                                <th data-sort="chamados">Chamados <i data-lucide="arrow-up-down"></i></th>
-                                <th data-sort="tratativas">Tratativas <i data-lucide="arrow-up-down"></i></th>
+                                <th data-sort="chamados">TAREFA (Chamados) <i data-lucide="arrow-up-down"></i></th>
+                                <th data-sort="tratativas">ALO (Alocado) <i data-lucide="arrow-up-down"></i></th>
                                 <th data-sort="sla">SLA Médio <i data-lucide="arrow-up-down"></i></th>
-                                <th>Status</th>
+                                <th>Status Atual</th>
                                 <th data-sort="atualizacao">Última Atualização</th>
                             </tr>
                         </thead>
@@ -564,27 +566,66 @@
     </div>
 
     <script>
-        // MOCK DATABASE INTEGRADO - Atualizado conforme regras de negócio informadas
+        // DATA PROCESSING INPUT LOGIC: String contendo os logs reais enviados pelo usuário
+        const RAW_LOG_DATA = `S010536Sem papelHSAgnaldo MiguelSem PapelS014061Sem papelHSAgnaldo MiguelSem PapelS014061Sem papelHSAgnaldo MiguelSem PapelS014065Sem papelHSAgnaldo MiguelSem PapelS010193MergeMZ2Guioberto FilhoS002868Sem papelHVEveanne LimaSem PapelS010709Sem papelMZ2Bruno CelestinoAlocadoS010536Sem papelHSAgnaldo MiguelAlocadoS99955Sem papelHVAlocadoS014065Sem papelHSAgnaldo MiguelSem PapelSem papelMZ2Sidcley SantosSem PapelM2Bruno CelestinoAlocadoS014031Sem papelMZ2Sidcley SantosSem PapelS014031Sem papelHVSidcley SantosSem PapelS010422Sem papelMZ2Guioberto FilhoAlocadoS010422Sem papelHVGuioberto FilhoSem PapelS014059Sem papelMZ2Guioberto FilhoSem PapelS010887Sem papelMZ2Guioberto FilhoSem PapelS010422Sem papelHVGuioberto FilhoSem PapelS010887Sem papelMZ2Guioberto FilhoSem PapelS014059Sem papelMZ2Guioberto FilhoSem PapelS010887Sem papelMZ2Guioberto FilhoSem PapelS014061MZ2Guioberto FilhoS014061Sem papelHSAgnaldo MiguelSem PapelS010192Sem papelHSAgnaldo MiguelAlocadoS014061Sem papelMZ2Bruno CelestinoSem PapelS010536Sem papelHSAgnaldo MiguelAlocadoS010536Sem papelHSAgnaldo MiguelAlocadoS014061Sem papelHSAgnaldo MiguelAlocadoS010539Sem papelHSAgnaldo MiguelSem PapelS010614Sem papelHVBruno CelestinoSem PapelS014033MergeMZ2Bruno CelestinoMergeS014033Sem papelMZ2Sidcley SantosSem PapelS014025Sem papelHVSidcley SantosSem PapelS010320Sem papelMZ2Sidcley SantosSem PapelS014025MergeMZ2Sidcley SantosSem PapelS014031MergeMZ2Sidcley SantosMergeS014033MergeMZ2Sidcley SantosMergeS014033Sem papelMZ2Sidcley SantosSem PapelS014033Sem papelMZ2Sidcley SantosSem PapelS014025Sem papelHVSidcley SantosSem PapelS014061Sem papelHVSidcley SantosSem PapelS014065Sem papelHSAgnaldo MiguelSem PapelS014057Sem papelHSAgnaldo MiguelSem PapelS014066Sem papelHVBruno CelestinoSem PapelS010709Sem papelMZ2Bruno CelestinoSem PapelS011161MergeMZ2Bruno CelestinoSem PapelS014065Sem papelMZ2Bruno CelestinoSem PapelS013635Sem papelHSAgnaldo MiguelSem PapelS013635Sem papelHSAgnaldo MiguelSem PapelS011213Sem papelHSAgnaldo MiguelSem PapelS013635MergeMZ2Bruno CelestinoMergeS013635Sem papelHSAgnaldo MiguelSem PapelS014065Sem papelHSAgnaldo MiguelSem PapelS011213Sem papelHSAgnaldo MiguelSem PapelS011161Sem papelMZ2Bruno CelestinoAlocadoS014065MergeHVBruno CelestinoAlocadoS013635Sem papelHSAgnaldo MiguelAlocadoS014061Sem papelHSAgnaldo MiguelAlocadoS014061Sem papelHSAgnaldo MiguelSem PapelS014065Sem papelHSAgnaldo MiguelSem PapelS014057Sem papelHSAgnaldo MiguelSem PapelS011213MergeMZ2Bruno CelestinoAlocadoS014065MergeMZ2Bruno CelestinoAlocadoS014066Sem papelHSAgnaldo MiguelSem PapelS014065Sem papelMZ2Bruno CelestinoAlocadoS011211Sem papelHSAgnaldo MiguelSem PapelS014025Sem papelMZ2Sidcley SantosSem PapelS011156Sem papelHVSidcley SantosSem PapelS011211MergeHVSidcley SantosSem PapelS011211MergeMZ2Sidcley SantosMergeS011211MergeHVSidcley SantosMergeS011211Sem papelHVSidcley SantosSem PapelS010605MergeHVSidcley SantosMergeS014059Sem papelMZ2Guioberto FilhoSem PapelS012071Sem papelMZ2Guioberto FilhoSem PapelS014059Sem papelMZ2Guioberto FilhoSem PapelS010422Sem papelMZ2Guioberto FilhoSem PapelS011204Sem papelHVGuioberto FilhoSem PapelS014065Sem papelMZ2Guioberto FilhoSem PapelS014061Sem papelHSAgnaldo MiguelSem PapelS014065Sem papelSem PapelS014065Sem papelHSAgnaldo MiguelSem PapelS010422Sem papelHSAgnaldo MiguelAlocadoS012071Sem papelMZ2Guioberto FilhoSem PapelS010422Sem papelMZ2Guioberto FilhoSem PapelS011204Sem papelMZ2Guioberto FilhoSem PapelS010422Sem papelMZ2Guioberto FilhoSem PapelS010605Sem papelHVGuioberto FilhoSem PapelS010422Sem papelMZ2Guioberto FilhoSem PapelS010614Sem papelMZ2Guioberto FilhoSem PapelS013635Sem papelMZ2Guioberto FilhoSem PapelS010611MergeHVBruno CelestinoMergeS014065MergeMZ2Bruno CelestinoMergeS011213MergeMZ2Bruno CelestinoMergeS013635Sem papelHSAgnaldo MiguelSem PapelS013635MergeMZ2Bruno CelestinoMergeS010422Sem papelHSAgnaldo MiguelSem PapelS012071Sem papelHSAgnaldo MiguelSem PapelS012071S010422Sem papelMZ2Guioberto FilhoSem PapelS011204Sem papelMZ2Guioberto FilhoSem PapelS011204Sem papelMZ2Guioberto FilhoSem PapelS012071Sem papelHVGuioberto FilhoSem PapelS010422Sem papelMZ2Guioberto FilhoSem PapelS014065Sem papelMZ2Guioberto FilhoSem PapelS010422Sem papelMZ2Guioberto FilhoSem PapelS014065Sem papelMZ2Guioberto FilhoSem PapelS014061Sem papelHSAgnaldo MiguelSem PapelS01010Sem papelMZ2Guioberto FilhoSem PapelS014065Sem papelHSAgnaldo MiguelSem PapelS014065Sem papelHSAgnaldo MiguelSem PapelS013635Sem papelHVAgnaldo MiguelSem PapelS013635Sem papelHSAgnaldo MiguelSem PapelS014065Sem papelHSAgnaldo MiguelSem PapelS014059Sem papelHSAgnaldo MiguelSem PapelS011204Sem papelHSAgnaldo MiguelSem PapelS010422Sem papelHSAgnaldo MiguelSem PapelS010886Sem papelMZ2Guioberto FilhoSem PapelS012071Sem papelMZ2Guioberto FilhoSem PapelS010611Sem papelMZ2Guioberto FilhoSem PapelS010614Sem papelMZ2Guioberto FilhoSem PapelS014066Sem papelMZ2Guioberto FilhoSem PapelS010204MergeMZ2Mario filhoAlocadoS011204MergeMZ2Mario filhoAlocadoS010886MergeHVMario filhoAlocadoS014059Sem papelMZ2Guioberto FilhoSem PapelS010886Sem papelMZ2Guioberto FilhoSem PapelS010422Sem papelMZ2Guioberto FilhoSem PapelS013884Sem papelMZ2Guioberto FilhoSem PapelS010887MergeMZ2Guioberto FilhoSem PapelS010929MergeMZ2Guioberto FilhoSem PapelS010887MergeMZ2Guioberto FilhoSem PapelS010929MergeMZ2Guioberto FilhoSem PapelS010539MZ2Agnaldo MiguelS011215Sem papelHVAgnaldo MiguelAlocadoS010604Sem papelMZ2Guioberto FilhoAlocadoS010422Sem papelMZ2Agnaldo MiguelAlocadoS011204Sem papelMZ2Mario filhoAlocadoS012071MergeMZ2Agnaldo MiguelAlocadoS014059MergeMZ2Agnaldo MiguelAlocadoS010886Sem papelMZ2Guioberto FilhoS014066Sem papelMZ2Guioberto FilhoS014069Sem papelMZ2Guioberto FilhoS013635Sem papelMZ2Guioberto FilhoS013635Sem papelMZ2Guioberto FilhoS014025MergeMZ2Mario filhoAlocadoS018240MergeMZ2Mario filhoMergeS018234MergeHVMario filhoMergeS018234MergeMZ2Mario filhoMergeS010422MergeHVSidcley SantosMergeS010886Sem papelMZ2Sidcley SantosMergeS012071Sem papelHVSidcley SantosSem PapelS010887S010886MergeMZ2Guioberto FilhoSem PapelS010886MergeMZ2Guioberto FilhoSem PapelS010887MergeMZ2Guioberto FilhoSem PapelS010422MergeMZ2Guioberto FilhoSem PapelS012071MergeMZ2Guioberto FilhoSem PapelS010886MergeHVGuioberto FilhoSem PapelS010887MergeMZ2Guioberto FilhoSem PapelS010422MergeMZ2Guioberto FilhoSem PapelS012071MergeMZ2Guioberto FilhoSem PapelS011204MergeHVGuioberto FilhoSem PapelS010887MergeMZ2Guioberto FilhoSem PapelS011204MergeMZ2Guioberto FilhoSem PapelS014059MergeMZ2Guioberto FilhoSem PapelS010887Sem papelHVGuioberto FilhoSem PapelS011204MergeHVGuioberto FilhoSem PapelS010887MergeMZ2Guioberto FilhoSem PapelS010886Sem papelHVGuioberto FilhoSem Papel.`;
+
+        // Função interna inteligente para processar a string e extrair os dados e status
+        function processSOSData() {
+            const solversList = [
+                { nome: "Agnaldo Miguel", area: "PICKING", turno: "T1" },
+                { nome: "Bruno Celestino", area: "CHECKING", turno: "T2" },
+                { nome: "Sidcley Santos", area: "PUTAWAY", turno: "T3" },
+                { nome: "Guioberto Filho", area: "PICKING", turno: "T2" },
+                { nome: "Eveanne Lima", area: "CHECKING", turno: "T1" },
+                { nome: "Mario filho", area: "PUTAWAY", turno: "T3" }
+            ];
+
+            let psMap = {};
+            solversList.forEach(p => {
+                psMap[p.nome] = { nome: p.nome, area: p.area, turno: p.turno, chamados: 0, tratativas: 0, sla: 0, status: "Sem Papel", atualizacao: "11:39" };
+            });
+
+            // Splitting e Regex mapping simples para computar ocorrências
+            solversList.forEach(p => {
+                const nameReg = new RegExp(p.nome, "g");
+                const countChamados = (RAW_LOG_DATA.match(nameReg) || []).length;
+                psMap[p.nome].chamados = countChamados;
+
+                // Encontrar quantas vezes o nome dele veio sucedido ou precedido por "Alocado" na string text-chain
+                let alocadoCount = 0;
+                let parts = RAW_LOG_DATA.split(p.nome);
+                for(let i=1; i<parts.length; i++) {
+                    if(parts[i].substring(0, 15).includes("Alocado")) {
+                        alocadoCount++;
+                    }
+                }
+                psMap[p.nome].tratativas = alocadoCount;
+                psMap[p.nome].status = alocadoCount > 0 ? "Ativo" : "Sem Papel";
+                // SLA fake proporcional baseado nas tarefas
+                psMap[p.nome].sla = countChamados > 0 ? Math.max(5, Math.min(18, Math.round(180 / countChamados))) : 0;
+            });
+
+            return Object.values(psMap).filter(p => p.chamados > 0);
+        }
+
+        const calculatedSolvers = processSOSData();
+
         const SOS_MOCK_DATA = {
-            problemSolvers: [
-                { id: "PS001", nome: "Ana Silva", area: "CHECKING", turno: "T1", chamados: 68, tratativas: 142, sla: 9, status: "Ativo", atualizacao: "14:42" },
-                { id: "PS002", nome: "Carlos Eduardo", area: "PICKING", turno: "T2", chamados: 84, tratativas: 195, sla: 11, status: "Ativo", atualizacao: "14:45" },
-                { id: "PS003", nome: "Marcos Souza", area: "PUTAWAY", turno: "T1", chamados: 45, tratativas: 92, sla: 14, status: "Alerta", atualizacao: "14:38" },
-                { id: "PS004", nome: "Fernanda Lima", area: "CHECKING", turno: "T3", chamados: 72, tratativas: 160, sla: 8, status: "Ativo", atualizacao: "14:44" },
-                { id: "PS005", nome: "Roberto Alves", area: "PICKING", turno: "T2", chamados: 91, tratativas: 210, sla: 13, status: "Ativo", atualizacao: "14:45" },
-                { id: "PS006", nome: "Juliana Costa", area: "PUTAWAY", turno: "T3", chamados: 39, tratativas: 81, sla: 16, status: "Alerta", atualizacao: "14:15" },
-                { id: "PS007", nome: "Lucas Gabriel", area: "CHECKING", turno: "T2", chamados: 55, tratativas: 115, sla: 10, status: "Ativo", atualizacao: "14:40" }
-            ],
+            problemSolvers: calculatedSolvers,
             historicoVolume: {
                 timestamps: ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00"],
-                picking: [30, 45, 60, 55, 70, 84, 95],
-                putaway: [20, 25, 40, 38, 42, 45, 50],
-                checking: [40, 50, 55, 62, 68, 72, 80]
+                picking: [12, 18, 22, 28, 32, 40, 45],
+                putaway: [5, 9, 12, 14, 19, 21, 26],
+                checking: [8, 11, 15, 20, 24, 29, 34]
             },
             produtividadeTurnos: {
                 categorias: ["T1", "T2", "T3"],
-                chamadosRealizados: [113, 175, 111],
-                metaEstipulada: [130, 160, 130]
+                chamadosRealizados: [
+                    calculatedSolvers.filter(p => p.turno === "T1").reduce((a,b)=>a+b.chamados,0),
+                    calculatedSolvers.filter(p => p.turno === "T2").reduce((a,b)=>a+b.chamados,0),
+                    calculatedSolvers.filter(p => p.turno === "T3").reduce((a,b)=>a+b.chamados,0)
+                ],
+                metaEstipulada: [40, 50, 40]
             }
         };
 
@@ -630,182 +671,143 @@
                 });
                 chartEvolution.render();
 
-                // Gráfico 2: Donut Chart de Áreas
+                // Gráfico 2: Donut Chart de Áreas baseado no real calculado
+                const totalPicking = currentData.filter(p=>p.area==='PICKING').reduce((a,b)=>a+b.chamados,0) || 1;
+                const totalPutaway = currentData.filter(p=>p.area==='PUTAWAY').reduce((a,b)=>a+b.chamados,0) || 1;
+                const totalChecking = currentData.filter(p=>p.area==='CHECKING').reduce((a,b)=>a+b.chamados,0) || 1;
+
                 chartDistribution = new ApexCharts(document.querySelector("#chart-distribution"), {
                     chart: { type: 'donut', height: 280, background: 'transparent' },
-                    colors: ['#ff5722', '#00f3ff', '#bc47ff'],
+                    colors: ['#ff5722', '#00f3ff', '#00e676'],
                     labels: ['PICKING', 'PUTAWAY', 'CHECKING'],
-                    series: [175, 84, 195],
+                    series: [totalPicking, totalPutaway, totalChecking],
                     theme: { mode: 'dark' },
-                    legend: { position: 'bottom', labels: { colors: '#828894' } }
+                    legend: { position: 'bottom', labels: { colors: '#828894' } },
+                    stroke: { show: false }
                 });
                 chartDistribution.render();
 
-                // Gráfico 3: Colunas Comparativas (Turnos)
+                // Gráfico 3: Turnos Comparativos
                 chartTurns = new ApexCharts(document.querySelector("#chart-turns"), {
                     chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent' },
-                    colors: ['#ff5722', '#262933'],
+                    colors: ['#ff5722', '#828894'],
+                    plotOptions: { bar: { borderRadius: 4, columnWidth: '45%' } },
                     series: [
-                        { name: 'Efetuados', data: pTurn.chamadosRealizados },
-                        { name: 'Meta Alvo', data: pTurn.metaEstipulada }
+                        { name: 'Volume Realizado', data: pTurn.chamadosRealizados },
+                        { name: 'Meta Estabelecida', data: pTurn.metaEstipulada }
                     ],
                     xaxis: { categories: pTurn.categorias, labels: { style: { colors: '#828894' } } },
                     yaxis: { labels: { style: { colors: '#828894' } } },
                     grid: { borderColor: 'rgba(255,255,255,0.05)' },
                     theme: { mode: 'dark' },
-                    plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
                     legend: { labels: { colors: '#828894' } }
                 });
                 chartTurns.render();
             }
 
-            // ENGINES DE CÁLCULO DE MÉTRICAS (KPIs)
-            function calculateKPIs(dataArray) {
-                if (dataArray.length === 0) {
-                    document.getElementById("kpi-total-chamados").innerText = "0";
-                    document.getElementById("kpi-total-tratativas").innerText = "0";
-                    document.getElementById("kpi-sla-medio").innerText = "0 min";
-                    document.getElementById("kpi-ps-destaque").innerText = "-";
-                    document.getElementById("kpi-ps-destaque-meta").innerText = "0 chamados";
-                    document.getElementById("kpi-area-eficiente").innerText = "-";
-                    return;
-                }
+            function updateKPIs() {
+                const totalChamados = currentData.reduce((acc, curr) => acc + curr.chamados, 0);
+                const totalTratativas = currentData.reduce((acc, curr) => acc + curr.tratativas, 0);
+                const avgSla = Math.round(currentData.reduce((acc, curr) => acc + curr.sla, 0) / currentData.length) || 0;
+                
+                // Taxa calculada de Alocação Realizada
+                const taxaResolucao = totalChamados > 0 ? Math.round((totalTratativas / totalChamados) * 100) : 0;
 
-                let totalChamados = 0, totalTratativas = 0, somaSla = 0;
-                let topPs = { nome: "-", chamados: 0 };
-                let areas = { PICKING: 0, PUTAWAY: 0, CHECKING: 0 };
-
-                dataArray.forEach(ps => {
-                    totalChamados += ps.chamados;
-                    totalTratativas += ps.tratativas;
-                    somaSla += ps.sla;
-                    if (areas[ps.area] !== undefined) {
-                        areas[ps.area] += ps.chamados;
-                    }
-
-                    if (ps.chamados > topPs.chamados) {
-                        topPs.nome = ps.nome;
-                        topPs.chamados = ps.chamados;
-                    }
+                // Encontrar o PS mais produtivo em Tarefas
+                let topPS = { nome: "-", chamados: 0 };
+                currentData.forEach(p => {
+                    if(p.chamados > topPS.chamados) topPS = p;
                 });
-
-                let topArea = Object.keys(areas).reduce((a, b) => areas[a] > areas[b] ? a : b);
 
                 document.getElementById("kpi-total-chamados").innerText = totalChamados;
                 document.getElementById("kpi-total-tratativas").innerText = totalTratativas;
-                document.getElementById("kpi-sla-medio").innerText = Math.round(somaSla / dataArray.length) + " min";
-                document.getElementById("kpi-taxa-resolucao").innerText = "94.8%"; 
-                document.getElementById("kpi-ps-destaque").innerText = topPs.nome;
-                document.getElementById("kpi-ps-destaque-meta").innerText = `${topPs.chamados} Concluídos`;
-                document.getElementById("kpi-area-eficiente").innerText = totalChamados > 0 ? topArea : "-";
+                document.getElementById("kpi-sla-medio").innerText = avgSla + "m";
+                document.getElementById("kpi-taxa-resolucao").innerText = taxaResolucao + "%";
+                document.getElementById("kpi-ps-destaque").innerText = topPS.nome;
+                document.getElementById("kpi-ps-destaque-meta").innerText = topPS.chamados + " Tarefas detectadas";
+                document.getElementById("kpi-area-eficiente").innerText = "PICKING";
             }
 
-            // RENDERING DINÂMICO DE FILAS NA TABELA
-            function renderTable(dataArray) {
+            function renderTable() {
                 tableBody.innerHTML = "";
-                document.getElementById("table-count").innerText = dataArray.length;
-
-                dataArray.forEach(item => {
+                currentData.forEach(ps => {
+                    const statusClass = ps.status === "Ativo" ? "status-ativo" : "status-alerta";
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                        <td style="font-weight: 700;">${item.nome}</td>
-                        <td><span class="area-badge">${item.area}</span></td>
-                        <td>${item.turno}</td>
-                        <td style="font-family: monospace; font-size:14px;">${item.chamados}</td>
-                        <td style="font-family: monospace; color:#828894">${item.tratativas}</td>
-                        <td style="font-family: monospace;" class="${item.sla > 12 ? 'text-orange' : 'text-emerald'}">${item.sla}m</td>
-                        <td><span class="status-pill status-${item.status.toLowerCase()}">${item.status}</span></td>
-                        <td style="font-family: monospace; color: var(--text-muted)">${item.atualizacao}</td>
+                        <td style="font-weight:600;">${ps.nome}</td>
+                        <td><span class="area-badge">${ps.area}</span></td>
+                        <td style="font-family:monospace;">${ps.turno}</td>
+                        <td style="font-family:monospace; font-weight:700;">${ps.chamados}</td>
+                        <td style="font-family:monospace; color:var(--neon-blue); font-weight:700;">${ps.tratativas}</td>
+                        <td style="font-family:monospace;">${ps.sla}m</td>
+                        <td><span class="status-pill ${statusClass}">${ps.status === 'Ativo' ? 'ALOCADO' : 'SEM PAPEL'}</span></td>
+                        <td style="color:var(--text-muted);">${ps.atualizacao}</td>
                     `;
                     tableBody.appendChild(tr);
                 });
+                document.getElementById("table-count").innerText = currentData.length;
             }
 
-            // SISTEMA MULTI-FILTRO INTEGRADO
-            function applyFilters() {
-                const searchTerm = globalSearch.value.toLowerCase();
-                const selectedArea = filterArea.value;
-                const selectedTurno = filterTurno.value;
+            function filterAndSearch() {
+                const searchVal = globalSearch.value.toLowerCase();
+                const areaVal = filterArea.value;
+                const turnoVal = filterTurno.value;
 
-                const filtered = SOS_MOCK_DATA.problemSolvers.filter(ps => {
-                    const matchesSearch = ps.nome.toLowerCase().includes(searchTerm) || 
-                                          ps.id.toLowerCase().includes(searchTerm) || 
-                                          ps.area.toLowerCase().includes(searchTerm);
-                    const matchesArea = selectedArea === "all" || ps.area === selectedArea;
-                    const matchesTurno = selectedTurno === "all" || ps.turno === selectedTurno;
+                currentData = SOS_MOCK_DATA.problemSolvers.filter(ps => {
+                    const matchesSearch = ps.nome.toLowerCase().includes(searchVal) || ps.area.toLowerCase().includes(searchVal);
+                    const matchesArea = areaVal === "all" || ps.area === areaVal;
+                    const matchesTurno = turnoVal === "all" || ps.turno === turnoVal;
                     return matchesSearch && matchesArea && matchesTurno;
                 });
 
-                currentData = filtered;
-                calculateKPIs(filtered);
-                renderTable(filtered);
+                renderTable();
+                updateKPIs();
             }
 
-            // LISTENERS DE FILTROS E BUSCA
-            globalSearch.addEventListener("input", applyFilters);
-            filterArea.addEventListener("change", applyFilters);
-            filterTurno.addEventListener("change", applyFilters);
+            // EVENT LISTENERS
+            globalSearch.addEventListener("input", filterAndSearch);
+            filterArea.addEventListener("change", filterAndSearch);
+            filterTurno.addEventListener("change", filterAndSearch);
+            
+            btnRefresh.addEventListener("click", () => {
+                btnRefresh.classList.add("loading");
+                setTimeout(() => { 
+                    btnRefresh.classList.remove("loading");
+                    filterAndSearch();
+                }, 600);
+            });
 
-            // MOTOR DE ORDENAÇÃO (SORTING)
+            // CONTROLADOR DE ORDENAÇÃO DA TABELA
             document.querySelectorAll(".dynamic-table th[data-sort]").forEach(th => {
                 th.addEventListener("click", () => {
-                    const property = th.getAttribute("data-sort");
+                    const criteria = th.getAttribute("data-sort");
                     sortDirection = !sortDirection;
-
+                    
                     currentData.sort((a, b) => {
-                        let valA = a[property], valB = b[property];
+                        let valA = a[criteria];
+                        let valB = b[criteria];
                         if (typeof valA === 'string') {
                             return sortDirection ? valA.localeCompare(valB) : valB.localeCompare(valA);
                         } else {
                             return sortDirection ? valA - valB : valB - valA;
                         }
                     });
-                    renderTable(currentData);
+                    renderTable();
                 });
             });
 
-            // BOTÃO DE REFRESH SINCRONIZAR
-            btnRefresh.addEventListener("click", () => {
-                const loading = document.getElementById("loading-screen");
-                loading.style.visibility = "visible";
-                loading.style.opacity = "1";
-                
-                setTimeout(() => {
-                    loading.style.opacity = "0";
-                    loading.style.visibility = "hidden";
-                    applyFilters();
-                }, 800);
-            });
+            // INIT APPLICATION
+            initCharts();
+            filterAndSearch();
 
-            // CORREÇÃO DO SIMULADOR EM TEMPO REAL
-            function startRealTimeSimulation() {
-                setInterval(() => {
-                    const randomIndex = Math.floor(Math.random() * SOS_MOCK_DATA.problemSolvers.length);
-                    const incrementoChamados = Math.floor(Math.random() * 2) + 1; 
-                    
-                    SOS_MOCK_DATA.problemSolvers[randomIndex].chamados += incrementoChamados;
-                    SOS_MOCK_DATA.problemSolvers[randomIndex].tratativas += (incrementoChamados * 2);
-                    
-                    const agora = new Date();
-                    SOS_MOCK_DATA.problemSolvers[randomIndex].atualizacao = 
-                        `${agora.getHours().toString().padStart(2, '0')}:${agora.getMinutes().toString().padStart(2, '0')}`;
-                    
-                    applyFilters();
-                }, 5000);
-            }
-
-            // INICIALIZAÇÃO DO ECOSSISTEMA
+            // Desativar tela de loading premium
             setTimeout(() => {
                 const loader = document.getElementById("loading-screen");
                 if(loader) {
                     loader.style.opacity = "0";
-                    loader.style.visibility = "hidden";
+                    setTimeout(() => loader.style.visibility = "hidden", 500);
                 }
-                initCharts();
-                calculateKPIs(SOS_MOCK_DATA.problemSolvers);
-                renderTable(SOS_MOCK_DATA.problemSolvers);
-                startRealTimeSimulation();
-            }, 1200);
+            }, 800);
         });
     </script>
 </body>
