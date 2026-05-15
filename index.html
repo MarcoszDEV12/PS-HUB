@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PS HUB - Monitoramento Operacional SOS</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* ==========================================================================
+           1. VARIÁVEIS DE DESIGN CORPORATIVO PREMIUM & RESET
+           ========================================================================== */
+        :root {
+            --bg-main: #0a0b0d;
+            --bg-card: rgba(20, 22, 28, 0.75);
+            --border-color: rgba(255, 255, 255, 0.07);
+            --border-hover: rgba(255, 87, 34, 0.4);
+            
+            --shopee-orange: #ff5722;
+            --neon-blue: #00f3ff;
+            --neon-green: #00e676;
+            --text-white: #ffffff;
+            --text-muted: #828894;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-white);
+            font-family: var(--font-family);
+            overflow-x: hidden;
+            background-image: radial-gradient(circle at 50% 0%, rgba(255, 87, 34, 0.08) 0%, transparent 60%);
+        }
+
+        /* ==========================================================================
+           2. LAYOUT & SKELETON LOADING CONTROLLER
+           ========================================================================== */
+        .loading-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-main);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+
+        .loader-box {
+            text-align: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 87, 34, 0.1);
+            border-top: 3px solid var(--shopee-orange);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .app-container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* ==========================================================================
+           3. HEADER & CONTROLS COMPONENT
+           ========================================================================== */
+        .main-header {
+            height: 70px;
+            background: rgba(13, 14, 18, 0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left, .header-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-area h1 {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            background: linear-gradient(90deg, #fff, var(--shopee-orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .live-pulse {
+            width: 9px;
+            height: 9px;
+            background-color: var(--shopee-orange);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--shopee-orange);
+            animation: pulse 1.8s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255, 87, 34, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 87, 34, 0); }
+        }
+
+        .divider {
+            width: 1px;
+            height: 25px;
+            background: var(--border-color);
+            margin: 0 15px;
+        }
+
+        .subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .clock-display {
+            font-family: monospace;
+            font-size: 16px;
+            color: var(--neon-blue);
+            background: rgba(0, 243, 255, 0.05);
+            padding: 4px 10px;
+            border-radius: 5px;
+            border: 1px solid rgba(0, 243, 255, 0.15);
+            margin-right: 15px;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 230, 118, 0.06);
+            padding: 4px 10px;
+            border-radius: 5px;
+            border: 1px solid rgba(0, 230, 118, 0.2);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--neon-green);
+            margin-right: 15px;
+        }
+
+        .integration-badge {
+            background: #171923;
+            font-size: 11px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+        }
+
+        .control-bar {
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-wrapper {
+            position: relative;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-wrapper i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            width: 16px;
+        }
+
+        .search-wrapper input {
+            width: 100%;
+            height: 40px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding-left: 40px;
+            padding-right: 15px;
+            color: #fff;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .search-wrapper input:focus { outline: none; border-color: var(--shopee-orange); }
+
+        .filter-group { display: flex; gap: 12px; }
+
+        .filter-group select {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 0 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .btn-primary {
+            background: var(--shopee-orange);
+            color: #fff;
+            border: none;
+            padding: 0 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            transition: transform 0.2s, background 0.3s;
+        }
+
+        .btn-primary:hover { background: #e04d1d; transform: translateY(-1px); }
+
+        /* ==========================================================================
+           4. VISUAL METRICS / ANIMATED KPI CARDS
+           ========================================================================== */
+        .dashboard-grid {
+            padding: 0 30px 40px 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .kpi-container {
+            display: grid;
+            grid-template-cols: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 18px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 22px;
+            position: relative;
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), border-color 0.3s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--border-hover);
+            box-shadow: 0 8px 24px rgba(255, 87, 34, 0.08);
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .icon-orange { background: rgba(255, 87, 34, 0.1); color: var(--shopee-orange); }
+        .icon-blue { background: rgba(0, 243, 255, 0.1); color: var(--neon-blue); }
+        .icon-green { background: rgba(0, 230, 118, 0.1); color: var(--neon-green); }
+        .icon-purple { background: rgba(156, 39, 176, 0.1); color: #bc47ff; }
+
+        .kpi-value { font-size: 30px; font-weight: 800; margin-top: 12px; font-family: monospace; }
+        .small-value { font-size: 18px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .kpi-footer { font-size: 11px; margin-top: 12px; font-weight: 500; }
+
+        .text-emerald { color: var(--neon-green); }
+        .text-green { color: var(--neon-green); }
+        .text-orange { color: var(--shopee-orange); }
+
+        /* ==========================================================================
+           5. CHARTS CONTROLLERS & DATA TABLES
+           ========================================================================== */
+        .charts-container {
+            display: grid;
+            grid-template-cols: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .lg-span-2 { grid-column: span 1; }
+        @media (min-width: 1200px) { .lg-span-2 { grid-column: span 2; } }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 22px;
+        }
+
+        .chart-card h3 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-white);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .table-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h2 { font-size: 15px; font-weight: 700; }
+        .table-pagination-info { font-size: 12px; color: var(--text-muted); }
+        .table-responsive { overflow-x: auto; width: 100%; }
+
+        .dynamic-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        .dynamic-table th {
+            background: rgba(13, 14, 18, 0.6);
+            padding: 14px 24px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .dynamic-table th:hover { color: #fff; background: rgba(13, 14, 18, 0.9); }
+        .dynamic-table th i { width: 12px; display: inline-block; vertical-align: middle; margin-left: 4px; }
+        .dynamic-table td { padding: 14px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.03); color: #d1d4dc; }
+        .dynamic-table tr:hover td { background: rgba(255, 255, 255, 0.02); color: #fff; }
+
+        /* BADGES OPERACIONAIS */
+        .status-pill {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-pill::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+        .status-ativo { background: rgba(0, 230, 118, 0.1); color: var(--neon-green); }
+        .status-ativo::before { background: var(--neon-green); }
+        .status-alerta { background: rgba(255, 87, 34, 0.1); color: var(--shopee-orange); }
+        .status-alerta::before { background: var(--shopee-orange); }
+
+        .area-badge {
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        /* CUSTOM SCROLL BAR */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-main); }
+        ::-webkit-scrollbar-thumb { background: #262933; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--shopee-orange); }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen" class="loading-screen">
+        <div class="loader-box">
+            <div class="spinner"></div>
+            <h2 style="font-size:16px; letter-spacing:2px; font-weight:800; margin-bottom:4px;">INICIALIZANDO PS HUB...</h2>
+            <p style="font-size:12px; color:var(--text-muted)">Conectando à base de dados operacional do App SOS</p>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <header class="main-header">
+            <div class="header-left">
+                <div class="logo-area">
+                    <span class="live-pulse"></span>
+                    <h1>PS HUB</h1>
+                </div>
+                <span class="divider"></span>
+                <p class="subtitle">SISTEMA DE GESTÃO E PRODUTIVIDADE OPERACIONAL (SOS)</p>
+            </div>
+            
+            <div class="header-right">
+                <div class="system-status">
+                    <span class="status-indicator online"></span>
+                    <span class="status-text">SOS STREAM ACTIVE</span>
+                </div>
+                <div id="realtime-clock" class="clock-display">00:00:00</div>
+                <div class="integration-badge">V1.0 - LIVE MODE</div>
+            </div>
+        </header>
+
+        <section class="control-bar">
+            <div class="search-wrapper">
+                <i data-lucide="search"></i>
+                <input type="text" id="global-search" placeholder="Buscar por Problem Solver, área ou chamado...">
+            </div>
+            <div class="filter-group">
+                <select id="filter-area">
+                    <option value="all">Todas as Áreas</option>
+                    <option value="Picking">Picking</option>
+                    <option value="Putaway">Putaway</option>
+                    <option value="Checking">Checking</option>
+                </select>
+                <select id="filter-turno">
+                    <option value="all">Todos os Turnos</option>
+                    <option value="Turno A">Turno A</option>
+                    <option value="Turno B">Turno B</option>
+                    <option value="Turno C">Turno C</option>
+                </select>
+                <button id="btn-refresh" class="btn-primary">
+                    <i data-lucide="refresh-cw"></i> Sincronizar
+                </button>
+            </div>
+        </section>
+
+        <main class="dashboard-grid">
+            <section class="kpi-container">
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>TOTAL DE CHAMADOS</span>
+                        <div class="kpi-icon icon-orange"><i data-lucide="activity"></i></div>
+                    </div>
+                    <div class="kpi-value" id="kpi-total-chamados">0</div>
+                    <div class="kpi-footer text-emerald">▲ +14.2% <span class="text-muted">vs ontem</span></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>TOTAL DE TRATATIVAS</span>
+                        <div class="kpi-icon icon-blue"><i data-lucide="git-pull-request"></i></div>
+                    </div>
+                    <div class="kpi-value" id="kpi-total-tratativas">0</div>
+                    <div class="kpi-footer text-muted">Ações diretas em sistema</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>SLA MÉDIO</span>
+                        <div class="kpi-icon icon-green"><i data-lucide="clock"></i></div>
+                    </div>
+                    <div class="kpi-value text-green" id="kpi-sla-medio">0m</div>
+                    <div class="kpi-footer text-green">Dentro da meta (&lt;15m)</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>TAXA DE RESOLUÇÃO</span>
+                        <div class="kpi-icon icon-purple"><i data-lucide="check-circle-2"></i></div>
+                    </div>
+                    <div class="kpi-value" id="kpi-taxa-resolucao">0%</div>
+                    <div class="kpi-footer text-emerald">Alta performance operacional</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>PS MAIS PRODUTIVO</span>
+                        <div class="kpi-icon icon-orange"><i data-lucide="award"></i></div>
+                    </div>
+                    <div class="kpi-value small-value" id="kpi-ps-destaque">-</div>
+                    <div class="kpi-footer text-orange" id="kpi-ps-destaque-meta">0 chamados</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>ÁREA MAIS EFICIENTE</span>
+                        <div class="kpi-icon icon-blue"><i data-lucide="layers"></i></div>
+                    </div>
+                    <div class="kpi-value small-value" id="kpi-area-eficiente">-</div>
+                    <div class="kpi-footer text-muted">Maior vazão de fluxo</div>
+                </div>
+            </section>
+
+            <section class="charts-container">
+                <div class="chart-card">
+                    <h3>Evolução Operacional e Histórico de Volume</h3>
+                    <div id="chart-evolution"></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Distribuição de Demandas por Área</h3>
+                    <div id="chart-distribution"></div>
+                </div>
+                <div class="chart-card lg-span-2">
+                    <h3>Produtividade Comparativa por Turno (Realizado x Meta)</h3>
+                    <div id="chart-turns"></div>
+                </div>
+            </section>
+
+            <section class="table-container">
+                <div class="table-header">
+                    <h2>Monitoramento Individual de Problem Solvers (PS)</h2>
+                    <div class="table-pagination-info">
+                        Exibindo <span id="table-count">0</span> registros ativos
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="dynamic-table" id="ps-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="nome">Problem Solver <i data-lucide="arrow-up-down"></i></th>
+                                <th data-sort="area">Área <i data-lucide="arrow-up-down"></i></th>
+                                <th data-sort="turno">Turno <i data-lucide="arrow-up-down"></i></th>
+                                <th data-sort="chamados">Chamados <i data-lucide="arrow-up-down"></i></th>
+                                <th data-sort="tratativas">Tratativas <i data-lucide="arrow-up-down"></i></th>
+                                <th data-sort="sla">SLA Médio <i data-lucide="arrow-up-down"></i></th>
+                                <th>Status</th>
+                                <th data-sort="atualizacao">Última Atualização</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // MOCK DATABASE INTEGRADO (Simulando estrutura nativa do App SOS)
+        const SOS_MOCK_DATA = {
+            problemSolvers: [
+                { id: "PS001", nome: "Ana Silva", area: "Checking", turno: "Turno A", chamados: 68, tratativas: 142, sla: 9, status: "Ativo", atualizacao: "14:42" },
+                { id: "PS002", nome: "Carlos Eduardo", area: "Picking", turno: "Turno B", chamados: 84, tratativas: 195, sla: 11, status: "Ativo", atualizacao: "14:45" },
+                { id: "PS003", nome: "Marcos Souza", area: "Putaway", turno: "Turno A", chamados: 45, tratativas: 92, sla: 14, status: "Alerta", atualizacao: "14:38" },
+                { id: "PS004", nome: "Fernanda Lima", area: "Checking", turno: "Turno C", chamados: 72, tratativas: 160, sla: 8, status: "Ativo", atualizacao: "14:44" },
+                { id: "PS005", nome: "Roberto Alves", area: "Picking", turno: "Turno B", chamados: 91, tratativas: 210, sla: 13, status: "Ativo", atualizacao: "14:45" },
+                { id: "PS006", nome: "Juliana Costa", area: "Putaway", turno: "Turno C", chamados: 39, tratativas: 81, sla: 16, status: "Alerta", atualizacao: "14:15" },
+                { id: "PS007", nome: "Lucas Gabriel", area: "Checking", turno: "Turno B", chamados: 55, tratativas: 115, sla: 10, status: "Ativo", atualizacao: "14:40" }
+            ],
+            historicoVolume: {
+                timestamps: ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00"],
+                picking: [30, 45, 60, 55, 70, 84, 95],
+                putaway: [20, 25, 40, 38, 42, 45, 50],
+                checking: [40, 50, 55, 62, 68, 72, 80]
+            },
+            produtividadeTurnos: {
+                categorias: ["Turno A", "Turno B", "Turno C"],
+                chamadosRealizados: [113, 175, 111],
+                metaEstipulada: [130, 160, 130]
+            }
+        };
+
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+
+            let currentData = [...SOS_MOCK_DATA.problemSolvers];
+            let sortDirection = false;
+            let chartEvolution, chartDistribution, chartTurns;
+
+            const tableBody = document.getElementById("table-body");
+            const globalSearch = document.getElementById("global-search");
+            const filterArea = document.getElementById("filter-area");
+            const filterTurno = document.getElementById("filter-turno");
+            const btnRefresh = document.getElementById("btn-refresh");
+
+            // RELÓGIO OPERACIONAL EM TEMPO REAL
+            setInterval(() => {
+                const clock = document.getElementById("realtime-clock");
+                if(clock) clock.innerText = new Date().toLocaleTimeString("pt-BR");
+            }, 1000);
+
+            // INICIALIZAÇÃO DOS GRÁFICOS (APEXCHARTS)
+            function initCharts() {
+                const hVol = SOS_MOCK_DATA.historicoVolume;
+                const pTurn = SOS_MOCK_DATA.produtividadeTurnos;
+
+                // Gráfico 1: Linhas Suaves / Spline Area
+                chartEvolution = new ApexCharts(document.querySelector("#chart-evolution"), {
+                    chart: { type: 'area', height: 280, toolbar: { show: false }, background: 'transparent' },
+                    colors: ['#ff5722', '#00f3ff', '#00e676'],
+                    stroke: { curve: 'smooth', width: 2 },
+                    series: [
+                        { name: 'Picking', data: hVol.picking },
+                        { name: 'Putaway', data: hVol.putaway },
+                        { name: 'Checking', data: hVol.checking }
+                    ],
+                    xaxis: { categories: hVol.timestamps, labels: { style: { colors: '#828894' } } },
+                    yaxis: { labels: { style: { colors: '#828894' } } },
+                    grid: { borderColor: 'rgba(255,255,255,0.05)' },
+                    theme: { mode: 'dark' },
+                    legend: { labels: { colors: '#828894' } }
+                });
+                chartEvolution.render();
+
+                // Gráfico 2: Donut Chart de Áreas
+                chartDistribution = new ApexCharts(document.querySelector("#chart-distribution"), {
+                    chart: { type: 'donut', height: 280, background: 'transparent' },
+                    colors: ['#ff5722', '#00f3ff', '#bc47ff'],
+                    labels: ['Picking', 'Putaway', 'Checking'],
+                    series: [175, 84, 195],
+                    theme: { mode: 'dark' },
+                    legend: { position: 'bottom', labels: { colors: '#828894' } }
+                });
+                chartDistribution.render();
+
+                // Gráfico 3: Colunas Comparativas (Turnos)
+                chartTurns = new ApexCharts(document.querySelector("#chart-turns"), {
+                    chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent' },
+                    colors: ['#ff5722', '#262933'],
+                    series: [
+                        { name: 'Efetuados', data: pTurn.chamadosRealizados },
+                        { name: 'Meta Alvo', data: pTurn.metaEstipulada }
+                    ],
+                    xaxis: { categories: pTurn.categorias, labels: { style: { colors: '#828894' } } },
+                    yaxis: { labels: { style: { colors: '#828894' } } },
+                    grid: { borderColor: 'rgba(255,255,255,0.05)' },
+                    theme: { mode: 'dark' },
+                    plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
+                    legend: { labels: { colors: '#828894' } }
+                });
+                chartTurns.render();
+            }
+
+            // ENGINES DE CÁLCULO DE MÉTRICAS (KPIs)
+            function calculateKPIs(dataArray) {
+                if (dataArray.length === 0) return;
+
+                let totalChamados = 0, totalTratativas = 0, somaSla = 0;
+                let topPs = { nome: "-", chamados: 0 };
+                let areas = { Picking: 0, Putaway: 0, Checking: 0 };
+
+                dataArray.forEach(ps => {
+                    totalChamados += ps.chamados;
+                    totalTratativas += ps.tratativas;
+                    somaSla += ps.sla;
+                    areas[ps.area] += ps.chamados;
+
+                    if (ps.chamados > topPs.chamados) {
+                        topPs.nome = ps.nome;
+                        topPs.chamados = ps.chamados;
+                    }
+                });
+
+                let topArea = Object.keys(areas).reduce((a, b) => areas[a] > areas[b] ? a : b);
+
+                document.getElementById("kpi-total-chamados").innerText = totalChamados;
+                document.getElementById("kpi-total-tratativas").innerText = totalTratativas;
+                document.getElementById("kpi-sla-medio").innerText = Math.round(somaSla / dataArray.length) + " min";
+                document.getElementById("kpi-taxa-resolucao").innerText = "94.8%"; 
+                document.getElementById("kpi-ps-destaque").innerText = topPs.nome;
+                document.getElementById("kpi-ps-destaque-meta").innerText = `${topPs.chamados} Concluídos`;
+                document.getElementById("kpi-area-eficiente").innerText = topArea;
+            }
+
+            // RENDERING DINÂMICO DE FILAS NA TABELA
+            function renderTable(dataArray) {
+                tableBody.innerHTML = "";
+                document.getElementById("table-count").innerText = dataArray.length;
+
+                dataArray.forEach(item => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td style="font-weight: 700;">${item.nome}</td>
+                        <td><span class="area-badge">${item.area}</span></td>
+                        <td>${item.turno}</td>
+                        <td style="font-family: monospace; font-size:14px;">${item.chamados}</td>
+                        <td style="font-family: monospace; color:#828894">${item.tratativas}</td>
+                        <td style="font-family: monospace;" class="${item.sla > 12 ? 'text-orange' : 'text-emerald'}">${item.sla}m</td>
+                        <td><span class="status-pill status-${item.status.toLowerCase()}">${item.status}</span></td>
+                        <td style="font-family: monospace; color: var(--text-muted)">${item.atualizacao}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            }
+
+            // SISTEMA MULTI-FILTRO INTEGRADO
+            function applyFilters() {
+                const searchTerm = globalSearch.value.toLowerCase();
+                const selectedArea = filterArea.value;
+                const selectedTurno = filterTurno.value;
+
+                const filtered = SOS_MOCK_DATA.problemSolvers.filter(ps => {
+                    const matchesSearch = ps.nome.toLowerCase().includes(searchTerm) || 
+                                          ps.id.toLowerCase().includes(searchTerm) || 
+                                          ps.area.toLowerCase().includes(searchTerm);
+                    const matchesArea = selectedArea === "all" || ps.area === selectedArea;
+                    const matchesTurno = selectedTurno === "all" || ps.turno === selectedTurno;
+                    return matchesSearch && matchesArea && matchesTurno;
+                });
+
+                currentData = filtered;
+                calculateKPIs(filtered);
+                renderTable(filtered);
+            }
+
+            // MOTOR DE ORDENAÇÃO (SORTING)
+            document.querySelectorAll(".dynamic-table th[data-sort]").forEach(th => {
+                th.addEventListener("click", () => {
+                    const property = th.getAttribute("data-sort");
+                    sortDirection = !sortDirection;
+
+                    currentData.sort((a, b) => {
+                        let valA = a[property], valB = b[property];
+                        if (typeof valA === 'string') {
+                            return sortDirection ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                        } else {
+                            return sortDirection ? valA - valB : valB - valA;
+                        }
+                    });
+                    renderTable(currentData);
+                });
+            });
+
+            // WEB PROCESSOR: SIMULAÇÃO STREAMING EM TEMPO REAL (INTERCEPTOR SOS)
+            function startRealTimeSimulation() {
+                setInterval(() => {
+                    const randomIndex = Math.floor(Math.random() * SOS_MOCK_DATA.problemSolvers.length);
+                    const incrementoChamados = Math.floor(Math.random() * 2) + 1; 
+                    
+                    SOS_MOCK_DATA.problemSolvers[randomIndex].chamados += incrementoChamados;
+                    SOS_MOCK_DATA.problemSolvers[randomIndex].tratativas += (incrementoChamados * 2);
+                    SOS_MOCK_DATA.problemSolvers[randomIndex].atualizacao = new Date().toLocaleTimeString("pt-BR", {hour: '2-digit', minute:'2-digit'});
+
+                    const seriesPicking = [...SOS_MOCK_DATA.historicoVolume.picking];
+                    seriesPicking[seriesPicking.length - 1] += incrementoChamados;
+                    
+                    if(chartEvolution) {
+                        chartEvolution.updateSeries([
+                            { data: seriesPicking },
+                            { data: SOS_MOCK_DATA.historicoVolume.putaway },
+                            { data: SOS_MOCK_DATA.historicoVolume.checking }
+                        ]);
+                    }
+                    applyFilters();
+                }, 4000); // Roda em background a cada 4 segundos
+            }
+
+            // LISTENERS
+            globalSearch.addEventListener("input", applyFilters);
+            filterArea.addEventListener("change", applyFilters);
+            filterTurno.addEventListener("change", applyFilters);
+            btnRefresh.addEventListener("click", () => {
+                btnRefresh.style.opacity = 0.5;
+                setTimeout(() => { btnRefresh.style.opacity = 1; applyFilters(); }, 400);
+            });
+
+            // DISPARO INICIAL
+            setTimeout(() => {
+                document.getElementById("loading-screen").style.opacity = "0";
+                setTimeout(() => document.getElementById("loading-screen").style.visibility = "hidden", 500);
+                
+                initCharts();
+                calculateKPIs(currentData);
+                renderTable(currentData);
+                startRealTimeSimulation();
+            }, 1200);
+        });
+    </script>
+</body>
+</html>
