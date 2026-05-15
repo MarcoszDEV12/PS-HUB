@@ -566,7 +566,7 @@
     </div>
 
     <script>
-        // URL Oficial de Produção do Google Apps Script fornecida pelo usuário
+        // URL Oficial de Produção do Google Apps Script
         const BACKEND_URL = "https://script.google.com/macros/s/AKfycbw29w_oGxhghnYnSX5eF4IFaT3dUxfgfeul_r-CaswKXssQqI7oQFBN-tQJDaV6cdNivw/exec";
 
         let rawBackendData = []; // Armazena a resposta bruta do backend
@@ -628,7 +628,6 @@
                 
                 rawBackendData = await response.json();
                 
-                // Trata erros de aba retornados pelo script
                 if (rawBackendData.error) {
                     alert("Erro interno no Apps Script: " + rawBackendData.error);
                     return;
@@ -680,7 +679,6 @@
                 let valA = a[sortProperty];
                 let valB = b[sortProperty];
 
-                // Força cast numérico se as propriedades forem métricas computáveis
                 if (["chamados", "tratativas", "sla"].includes(sortProperty)) {
                     valA = Number(valA);
                     valB = Number(valB);
@@ -741,24 +739,21 @@
             let areaVolumes = { PICKING: 0, PUTAWAY: 0, CHECKING: 0 };
 
             dataArray.forEach(item => {
-                totalChamados += item.chamados;
-                totalTratativas += item.tratativas;
-                somaSla += item.sla;
+                totalChamados += Number(item.chamados);
+                totalTratativas += Number(item.tratativas);
+                somaSla += Number(item.sla);
 
                 if (areaVolumes[item.area] !== undefined) {
-                    areaVolumes[item.area] += item.chamados;
+                    areaVolumes[item.area] += Number(item.chamados);
                 }
 
-                if (item.chamados > topPs.chamados) {
+                if (Number(item.chamados) > topPs.chamados) {
                     topPs.nome = item.ps;
-                    topPs.chamados = item.chamados;
+                    topPs.chamados = Number(item.chamados);
                 }
             });
 
-            // Determina a maior área em volume de vazão
             let topArea = Object.keys(areaVolumes).reduce((a, b) => areaVolumes[a] > areaVolumes[b] ? a : b);
-            
-            // Taxa de Resolução Matemática Base: (Tratativas / Chamados) % limitado a 100%
             let taxaResolucao = totalChamados > 0 ? Math.min(((totalTratativas / totalChamados) * 100), 100).toFixed(1) : "0.0";
 
             document.getElementById("kpi-total-chamados").innerText = totalChamados;
@@ -772,83 +767,83 @@
 
         // RE-COMPUTAÇÃO E UPDATE GRÁFICO REALTIME (APEXCHARTS)
         function updateChartsData(dataArray) {
-            // 1. Agrupamento para Donut Chart (Distribuição)
             let areas = { PICKING: 0, PUTAWAY: 0, CHECKING: 0 };
-            
-            // 2. Agrupamento para Gráfico de Colunas (Turnos)
             let turnosData = { T1: 0, T2: 0, T3: 0 };
 
-            // 3. Agrupamento de Linhas (Mapeamento cruzado para simular timeline produtiva com base nos PS ativos)
-            let lineDataMap = { PICKING: [], PUTAWAY: [], CHECKING: [], names: [] };
+            // Vetores para alimentar a evolução por indivíduo selecionado
+            let psNames = [];
+            let psChamados = [];
+            let psTratativas = [];
 
             dataArray.forEach(item => {
-                if (areas[item.area] !== undefined) areas[item.area] += item.chamados;
-                if (turnosData[item.turno] !== undefined) turnosData[item.turno] += item.chamados;
+                if (areas[item.area] !== undefined) areas[item.area] += Number(item.chamados);
+                if (turnosData[item.turno] !== undefined) turnosData[item.turno] += Number(item.chamados);
                 
-                lineDataMap.names.push(item.ps);
-                lineDataMap.PICKING.push(item.area === "PICKING" ? item.chamados : 0);
-                lineDataMap.PUTAWAY.push(item.area === "PUTAWAY" ? item.chamados : 0);
-                lineDataMap.CHECKING.push(item.area === "CHECKING" ? item.chamados : 0);
+                psNames.push(item.ps);
+                psChamados.push(Number(item.chamados));
+                psTratativas.push(Number(item.tratativas));
             });
 
-            // Atualiza Gráfico Donut
-            chartDistribution.updateSeries([areas.PICKING, areas.PUTAWAY, areas.CHECKING]);
-
-            // Atualiza Gráfico de Turnos (Efetuados vs Meta Operacional Padrão)
-            chartTurns.updateSeries([
-                { name: 'Efetuados', data: [turnosData.T1, turnosData.T2, turnosData.T3] },
-                { name: 'Meta Alvo', data: [130, 160, 130] } // Meta fixa corporativa de referência
-            ]);
-
-            // Atualiza Gráfico de Linha Operacional por PS
+            // Atualiza Gráfico de Linha/Área (Evolução por PS ativo)
             chartEvolution.updateOptions({
-                xaxis: { categories: lineDataMap.names.slice(0, 10) }
+                xaxis: { categories: psNames.length > 0 ? psNames : ["Sem dados"] }
             });
             chartEvolution.updateSeries([
-                { name: 'PICKING', data: lineDataMap.PICKING.slice(0, 10) },
-                { name: 'PUTAWAY', data: lineDataMap.PUTAWAY.slice(0, 10) },
-                { name: 'CHECKING', data: lineDataMap.CHECKING.slice(0, 10) }
+                { name: "Chamados", data: psChamados.length > 0 ? psChamados : [0] },
+                { name: "Tratativas", data: psTratativas.length > 0 ? psTratativas : [0] }
+            ]);
+
+            // Atualiza Gráfico Donut (Distribuição por Área)
+            chartDistribution.updateSeries([areas.PICKING, areas.PUTAWAY, areas.CHECKING]);
+
+            // Atualiza Gráfico de Colunas (Turnos vs Metas simuladas baseadas em 15 chamados/médio)
+            chartTurns.updateSeries([
+                { name: "Realizado", data: [turnosData.T1, turnosData.T2, turnosData.T3] },
+                { name: "Meta Operacional", data: [45, 45, 45] } // Meta fixa referencial de equipe
             ]);
         }
 
-        // CONSTRUTOR INICIAL DOS GRÁFICOS (APEXCHARTS)
+        // CONSTRUTOR INICIAL DOS GRÁFICOS (APEXCHARTS CONFIG)
         function buildCharts() {
-            // Gráfico 1: Timeline Operacional por Operador
-            chartEvolution = new ApexCharts(document.querySelector("#chart-evolution"), {
-                chart: { type: 'area', height: 280, toolbar: { show: false }, background: 'transparent' },
-                colors: ['#ff5722', '#00f3ff', '#00e676'],
-                stroke: { curve: 'smooth', width: 2 },
-                series: [{ name: 'PICKING', data: [] }, { name: 'PUTAWAY', data: [] }, { name: 'CHECKING', data: [] }],
-                xaxis: { categories: [], labels: { style: { colors: '#828894' } } },
-                yaxis: { labels: { style: { colors: '#828894' } } },
-                grid: { borderColor: 'rgba(255,255,255,0.05)' },
+            const baseOptions = {
+                chart: { foreColor: '#828894', toolbar: { show: false }, background: 'transparent' },
                 theme: { mode: 'dark' },
-                legend: { labels: { colors: '#828894' } }
+                colors: ['#ff5722', '#00f3ff', '#00e676']
+            };
+
+            // 1. Gráfico de Evolução (Linha/Área Mista)
+            chartEvolution = new ApexCharts(document.querySelector("#chart-evolution"), {
+                ...baseOptions,
+                chart: { ...baseOptions.chart, type: 'area', height: 260 },
+                stroke: { curve: 'smooth', width: 2 },
+                dataLabels: { enabled: false },
+                series: [],
+                xaxis: { categories: [] },
+                grid: { borderColor: 'rgba(255,255,255,0.05)' }
             });
             chartEvolution.render();
 
-            // Gráfico 2: Donut Chart de Distribuição por Áreas
+            // 2. Gráfico de Distribuição (Donut)
             chartDistribution = new ApexCharts(document.querySelector("#chart-distribution"), {
-                chart: { type: 'donut', height: 280, background: 'transparent' },
-                colors: ['#ff5722', '#00f3ff', '#bc47ff'],
+                ...baseOptions,
+                chart: { ...baseOptions.chart, type: 'donut', height: 260 },
                 labels: ['PICKING', 'PUTAWAY', 'CHECKING'],
                 series: [0, 0, 0],
-                theme: { mode: 'dark' },
-                legend: { position: 'bottom', labels: { colors: '#828894' } }
+                legend: { position: 'bottom' },
+                stroke: { show: false }
             });
             chartDistribution.render();
 
-            // Gráfico 3: Colunas Comparativas de Produtividade (Turnos)
+            // 3. Gráfico de Turnos (Colunas Comparativas)
             chartTurns = new ApexCharts(document.querySelector("#chart-turns"), {
-                chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent' },
-                colors: ['#ff5722', '#262933'],
-                series: [{ name: 'Efetuados', data: [0, 0, 0] }, { name: 'Meta Alvo', data: [130, 160, 130] }],
-                xaxis: { categories: ["T1", "T2", "T3"], labels: { style: { colors: '#828894' } } },
-                yaxis: { labels: { style: { colors: '#828894' } } },
-                grid: { borderColor: 'rgba(255,255,255,0.05)' },
-                theme: { mode: 'dark' },
-                plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
-                legend: { labels: { colors: '#828894' } }
+                ...baseOptions,
+                chart: { ...baseOptions.chart, type: 'bar', height: 280 },
+                plotOptions: { bar: { horizontal: false, columnWidth: '45%', borderRadius: 4 } },
+                dataLabels: { enabled: false },
+                stroke: { show: true, width: 2, colors: ['transparent'] },
+                series: [],
+                xaxis: { categories: ['Turno 1 (T1)', 'Turno 2 (T2)', 'Turno 3 (T3)'] },
+                grid: { borderColor: 'rgba(255,255,255,0.05)' }
             });
             chartTurns.render();
         }
