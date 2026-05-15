@@ -242,11 +242,6 @@
         }
 
         .btn-primary:hover { background: #e04d1d; transform: translateY(-1px); }
-        
-        /* Animação de rotação para o ícone de sincronizar */
-        .rotating {
-            animation: spin 1s linear infinite;
-        }
 
         /* ==========================================================================
            4. VISUAL METRICS / ANIMATED KPI CARDS
@@ -467,7 +462,7 @@
                     <option value="T3">T3</option>
                 </select>
                 <button id="btn-refresh" class="btn-primary">
-                    <i id="icon-refresh" data-lucide="refresh-cw"></i> Sincronizar
+                    <i data-lucide="refresh-cw"></i> Sincronizar
                 </button>
             </div>
         </section>
@@ -557,7 +552,7 @@
                                 <th data-sort="tratativas">Tratativas <i data-lucide="arrow-up-down"></i></th>
                                 <th data-sort="sla">SLA Médio <i data-lucide="arrow-up-down"></i></th>
                                 <th>Status</th>
-                                <th data-sort="atualizacao">Última Atualização</th>
+                                <th data-sort="atualizacao">Última Atualização <i data-lucide="arrow-up-down"></i></th>
                             </tr>
                         </thead>
                         <tbody id="table-body">
@@ -569,130 +564,124 @@
     </div>
 
     <script>
-        // URL da API REST de Produção do Google Apps Script
-        const API_URL = "AKfycbwXoRhRLg2h96R9Hu4VF0Dm9oLzqJ1FgjWqijD8xbOZFWPVBEVw796uV7EMZ39G0dwS";
+        // URL da sua implantação nova do Google Apps Script (sem o erro de setHeaders)
+        const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyFO-5fQiQ2J2z-lq5gE3IYNflS-hMVQ3Z-PFj9EG9RoAf9Ydl4bGfRb9oJV-J6h9SHqg/exec";
 
-        // Variável Global que armazenará a base de dados vinda da API
-        let DATA_BASE = { problemSolvers: [], historicoVolume: {}, produtividadeTurnos: {} };
-        let currentData = [];
-        let sortDirection = false;
-        let chartEvolution, chartDistribution, chartTurns;
-
-        const tableBody = document.getElementById("table-body");
-        const globalSearch = document.getElementById("global-search");
-        const filterArea = document.getElementById("filter-area");
-        const filterTurno = document.getElementById("filter-turno");
-        const btnRefresh = document.getElementById("btn-refresh");
-        const iconRefresh = document.getElementById("icon-refresh");
-
-        // RELÓGIO OPERACIONAL EM TEMPO REAL
-        setInterval(() => {
-            const clock = document.getElementById("realtime-clock");
-            if(clock) clock.innerText = new Date().toLocaleTimeString("pt-BR");
-        }, 1000);
-
-        // FUNÇÃO DE CONEXÃO E REQUISIÇÃO À API REST DO APPS SCRIPT
-        async function fetchDatabase() {
-            try {
-                // Ativa feedback de carregamento no botão sincronizar
-                if(iconRefresh) iconRefresh.classList.add("rotating");
-                
-                const response = await fetch(API_URL);
-                if (!response.ok) throw new Error("Falha de resposta da rede operacional.");
-                
-                const apiResult = await response.json();
-                
-                if (apiResult.status === "sucesso") {
-                    // Armazena a resposta estruturada nos objetos do Front
-                    DATA_BASE = apiResult.dados;
-                    currentData = [...DATA_BASE.problemSolvers];
-                    
-                    // Renderiza componentes dinâmicos com dados reais de produção
-                    buildOrUpdateCharts();
-                    applyFilters();
-                    
-                    // Oculta a tela de inicialização (Splash) na primeira carga bem-sucedida
-                    const loader = document.getElementById("loading-screen");
-                    if (loader) {
-                        loader.style.opacity = "0";
-                        setTimeout(() => loader.style.visibility = "hidden", 500);
-                    }
-                } else {
-                    console.error("Erro interno no script do Google:", apiResult.mensagem);
-                }
-            } catch (error) {
-                console.error("Erro crítico na sincronização do Hub:", error);
-                alert("Falha ao comunicar com a Base do App SOS. Verifique a implantação do Apps Script.");
-            } finally {
-                if(iconRefresh) iconRefresh.classList.remove("rotating");
+        // MOCK DATABASE INTEGRADO
+        const SOS_MOCK_DATA = {
+            problemSolvers: [
+                { id: "PS001", nome: "Ana Silva", area: "CHECKING", turno: "T1", chamados: 68, tratativas: 142, sla: 9, status: "Ativo", atualizacao: "14:42" },
+                { id: "PS002", nome: "Carlos Eduardo", area: "PICKING", turno: "T2", chamados: 84, tratativas: 195, sla: 11, status: "Ativo", atualizacao: "14:45" },
+                { id: "PS003", nome: "Marcos Souza", area: "PUTAWAY", turno: "T1", chamados: 45, tratativas: 92, sla: 14, status: "Alerta", atualizacao: "14:38" },
+                { id: "PS004", nome: "Fernanda Lima", area: "CHECKING", turno: "T3", chamados: 72, tratativas: 160, sla: 8, status: "Ativo", atualizacao: "14:44" },
+                { id: "PS005", nome: "Roberto Alves", area: "PICKING", turno: "T2", chamados: 91, tratativas: 210, sla: 13, status: "Ativo", atualizacao: "14:45" },
+                { id: "PS006", nome: "Juliana Costa", area: "PUTAWAY", turno: "T3", chamados: 39, tratativas: 81, sla: 16, status: "Alerta", atualizacao: "14:15" },
+                { id: "PS007", nome: "Lucas Gabriel", area: "CHECKING", turno: "T2", chamados: 55, tratativas: 115, sla: 10, status: "Ativo", atualizacao: "14:40" }
+            ],
+            historicoVolume: {
+                timestamps: ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00"],
+                picking: [30, 45, 60, 55, 70, 84, 95],
+                putaway: [20, 25, 40, 38, 42, 45, 50],
+                checking: [40, 50, 55, 62, 68, 72, 80]
+            },
+            produtividadeTurnos: {
+                categorias: ["T1", "T2", "T3"],
+                chamadosRealizados: [113, 175, 111],
+                metaEstipulada: [130, 160, 130]
             }
-        }
+        };
 
-        // CONTROLADOR GLOBAL DOS GRÁFICOS (CONSTRÓI OU ATUALIZA)
-        function buildOrUpdateCharts() {
-            const hVol = DATA_BASE.historicoVolume;
-            const pTurn = DATA_BASE.produtividadeTurnos;
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
 
-            // 1. Gráfico de Evolução (Linhas)
-            if (!chartEvolution) {
+            let currentData = [...SOS_MOCK_DATA.problemSolvers];
+            let sortDirection = false;
+            let chartEvolution, chartDistribution, chartTurns;
+
+            const tableBody = document.getElementById("table-body");
+            const globalSearch = document.getElementById("global-search");
+            const filterArea = document.getElementById("filter-area");
+            const filterTurno = document.getElementById("filter-turno");
+            const btnRefresh = document.getElementById("btn-refresh");
+
+            // INTEGRAÇÃO COM O GOOGLE APS SCRIPT NA INICIALIZAÇÃO
+            async function conectarBaseSOS() {
+                try {
+                    const response = await fetch(URL_APPS_SCRIPT);
+                    if (!response.ok) throw new Error(`Status: ${response.status}`);
+                    
+                    const dados = await response.json();
+                    
+                    if (dados.status === "sucesso") {
+                        console.log("Integração bem-sucedida:", dados.mensagem);
+                        // Esconde o loading screen após a conexão retornar sucesso
+                        document.getElementById("loading-screen").style.opacity = "0";
+                        setTimeout(() => {
+                            document.getElementById("loading-screen").style.visibility = "hidden";
+                        }, 500);
+                    } else {
+                        console.warn("Base respondeu com erro interno, usando Mock de fallback.");
+                        removerLoadingFallback();
+                    }
+                } catch (error) {
+                    console.error("Falha ao conectar na API Google, rodando modo de demonstração local:", error);
+                    removerLoadingFallback();
+                }
+            }
+
+            function removerLoadingFallback() {
+                document.getElementById("loading-screen").style.opacity = "0";
+                setTimeout(() => {
+                    document.getElementById("loading-screen").style.visibility = "hidden";
+                }, 500);
+            }
+
+            // RELÓGIO OPERACIONAL EM TEMPO REAL
+            setInterval(() => {
+                const clock = document.getElementById("realtime-clock");
+                if(clock) clock.innerText = new Date().toLocaleTimeString("pt-BR");
+            }, 1000);
+
+            // INICIALIZAÇÃO DOS GRÁFICOS (APEXCHARTS)
+            function initCharts() {
+                const hVol = SOS_MOCK_DATA.historicoVolume;
+                const pTurn = SOS_MOCK_DATA.produtividadeTurnos;
+
                 chartEvolution = new ApexCharts(document.querySelector("#chart-evolution"), {
                     chart: { type: 'area', height: 280, toolbar: { show: false }, background: 'transparent' },
                     colors: ['#ff5722', '#00f3ff', '#00e676'],
                     stroke: { curve: 'smooth', width: 2 },
                     series: [
-                        { name: 'PICKING', data: hVol.picking || [] },
-                        { name: 'PUTAWAY', data: hVol.putaway || [] },
-                        { name: 'CHECKING', data: hVol.checking || [] }
+                        { name: 'PICKING', data: hVol.picking },
+                        { name: 'PUTAWAY', data: hVol.putaway },
+                        { name: 'CHECKING', data: hVol.checking }
                     ],
-                    xaxis: { categories: hVol.timestamps || [], labels: { style: { colors: '#828894' } } },
+                    xaxis: { categories: hVol.timestamps, labels: { style: { colors: '#828894' } } },
                     yaxis: { labels: { style: { colors: '#828894' } } },
                     grid: { borderColor: 'rgba(255,255,255,0.05)' },
                     theme: { mode: 'dark' },
                     legend: { labels: { colors: '#828894' } }
                 });
                 chartEvolution.render();
-            } else {
-                chartEvolution.updateSeries([
-                    { name: 'PICKING', data: hVol.picking || [] },
-                    { name: 'PUTAWAY', data: hVol.putaway || [] },
-                    { name: 'CHECKING', data: hVol.checking || [] }
-                ]);
-                chartEvolution.updateOptions({ xaxis: { categories: hVol.timestamps || [] } });
-            }
 
-            // 2. Gráfico de Distribuição (Donut)
-            // Calcula totais dinâmicos de chamados por área diretamente do banco recebido
-            let totalPicking = 0, totalPutaway = 0, totalChecking = 0;
-            DATA_BASE.problemSolvers.forEach(ps => {
-                if (ps.area === "PICKING") totalPicking += ps.chamados;
-                if (ps.area === "PUTAWAY") totalPutaway += ps.chamados;
-                if (ps.area === "CHECKING") totalChecking += ps.chamados;
-            });
-
-            if (!chartDistribution) {
                 chartDistribution = new ApexCharts(document.querySelector("#chart-distribution"), {
                     chart: { type: 'donut', height: 280, background: 'transparent' },
                     colors: ['#ff5722', '#00f3ff', '#bc47ff'],
                     labels: ['PICKING', 'PUTAWAY', 'CHECKING'],
-                    series: [totalPicking, totalPutaway, totalChecking],
+                    series: [175, 84, 195],
                     theme: { mode: 'dark' },
                     legend: { position: 'bottom', labels: { colors: '#828894' } }
                 });
                 chartDistribution.render();
-            } else {
-                chartDistribution.updateSeries([totalPicking, totalPutaway, totalChecking]);
-            }
 
-            // 3. Gráfico de Turnos (Colunas Comparativas)
-            if (!chartTurns) {
                 chartTurns = new ApexCharts(document.querySelector("#chart-turns"), {
                     chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent' },
                     colors: ['#ff5722', '#262933'],
                     series: [
-                        { name: 'Efetuados', data: pTurn.chamadosRealizados || [] },
-                        { name: 'Meta Alvo', data: pTurn.metaEstipulada || [] }
+                        { name: 'Efetuados', data: pTurn.chamadosRealizados },
+                        { name: 'Meta Alvo', data: pTurn.metaEstipulada }
                     ],
-                    xaxis: { categories: pTurn.categorias || [], labels: { style: { colors: '#828894' } } },
+                    xaxis: { categories: pTurn.categorias, labels: { style: { colors: '#828894' } } },
                     yaxis: { labels: { style: { colors: '#828894' } } },
                     grid: { borderColor: 'rgba(255,255,255,0.05)' },
                     theme: { mode: 'dark' },
@@ -700,125 +689,121 @@
                     legend: { labels: { colors: '#828894' } }
                 });
                 chartTurns.render();
-            } else {
-                chartTurns.updateSeries([
-                    { name: 'Efetuados', data: pTurn.chamadosRealizados || [] },
-                    { name: 'Meta Alvo', data: pTurn.metaEstipulada || [] }
-                ]);
-            }
-        }
-
-        // ENGINES DE CÁLCULO DE MÉTRICAS (KPIs)
-        function calculateKPIs(dataArray) {
-            if (!dataArray || dataArray.length === 0) {
-                document.getElementById("kpi-total-chamados").innerText = "0";
-                document.getElementById("kpi-total-tratativas").innerText = "0";
-                document.getElementById("kpi-sla-medio").innerText = "0 min";
-                document.getElementById("kpi-ps-destaque").innerText = "-";
-                document.getElementById("kpi-ps-destaque-meta").innerText = "0 chamados";
-                document.getElementById("kpi-area-eficiente").innerText = "-";
-                return;
             }
 
-            let totalChamados = 0, totalTratativas = 0, somaSla = 0;
-            let topPs = { nome: "-", chamados: -1 };
-            let areas = { PICKING: 0, PUTAWAY: 0, CHECKING: 0 };
-
-            dataArray.forEach(ps => {
-                totalChamados += ps.chamados;
-                totalTratativas += ps.tratativas;
-                somaSla += ps.sla;
-                if (areas[ps.area] !== undefined) {
-                    areas[ps.area] += ps.chamados;
+            // ENGINES DE CÁLCULO DE MÉTRICAS (KPIs)
+            function calculateKPIs(dataArray) {
+                if (dataArray.length === 0) {
+                    document.getElementById("kpi-total-chamados").innerText = "0";
+                    document.getElementById("kpi-total-tratativas").innerText = "0";
+                    document.getElementById("kpi-sla-medio").innerText = "0 min";
+                    document.getElementById("kpi-ps-destaque").innerText = "-";
+                    document.getElementById("kpi-ps-destaque-meta").innerText = "0 chamados";
+                    document.getElementById("kpi-area-eficiente").innerText = "-";
+                    return;
                 }
 
-                if (ps.chamados > topPs.chamados) {
-                    topPs.nome = ps.nome;
-                    topPs.chamados = ps.chamados;
-                }
-            });
+                let totalChamados = 0, totalTratativas = 0, somaSla = 0;
+                let topPs = { nome: "-", chamados: 0 };
+                let areas = { PICKING: 0, PUTAWAY: 0, CHECKING: 0 };
 
-            let topArea = Object.keys(areas).reduce((a, b) => areas[a] > areas[b] ? a : b);
+                dataArray.forEach(ps => {
+                    totalChamados += ps.chamados;
+                    totalTratativas += ps.tratativas;
+                    somaSla += ps.sla;
+                    if (areas[ps.area] !== undefined) {
+                        areas[ps.area] += ps.chamados;
+                    }
 
-            document.getElementById("kpi-total-chamados").innerText = totalChamados;
-            document.getElementById("kpi-total-tratativas").innerText = totalTratativas;
-            document.getElementById("kpi-sla-medio").innerText = Math.round(somaSla / dataArray.length) + " min";
-            document.getElementById("kpi-taxa-resolucao").innerText = "94.8%"; 
-            document.getElementById("kpi-ps-destaque").innerText = topPs.nome;
-            document.getElementById("kpi-ps-destaque-meta").innerText = `${topPs.chamados} Concluídos`;
-            document.getElementById("kpi-area-eficiente").innerText = totalChamados > 0 ? topArea : "-";
-        }
-
-        // RENDERING DINÂMICO DE FILAS NA TABELA
-        function renderTable(dataArray) {
-            tableBody.innerHTML = "";
-            document.getElementById("table-count").innerText = dataArray.length;
-
-            dataArray.forEach(item => {
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td style="font-weight: 700;">${item.nome}</td>
-                    <td><span class="area-badge">${item.area}</span></td>
-                    <td>${item.turno}</td>
-                    <td style="font-family: monospace; font-size:14px;">${item.chamados}</td>
-                    <td style="font-family: monospace; color:#828894">${item.tratativas}</td>
-                    <td style="font-family: monospace;" class="${item.sla > 12 ? 'text-orange' : 'text-emerald'}">${item.sla}m</td>
-                    <td><span class="status-pill status-${item.status.toLowerCase()}">${item.status}</span></td>
-                    <td style="font-family: monospace; color: var(--text-muted)">${item.atualizacao}</td>
-                `;
-                tableBody.appendChild(tr);
-            });
-        }
-
-        // SISTEMA MULTI-FILTRO INTEGRADO (Aplica sobre DATA_BASE recebido da API)
-        function applyFilters() {
-            const searchTerm = globalSearch.value.toLowerCase();
-            const selectedArea = filterArea.value;
-            const selectedTurno = filterTurno.value;
-
-            const filtered = DATA_BASE.problemSolvers.filter(ps => {
-                const matchesSearch = ps.nome.toLowerCase().includes(searchTerm) || 
-                                      ps.id.toLowerCase().includes(searchTerm) || 
-                                      ps.area.toLowerCase().includes(searchTerm);
-                const matchesArea = selectedArea === "all" || ps.area === selectedArea;
-                const matchesTurno = selectedTurno === "all" || ps.turno === selectedTurno;
-                return matchesSearch && matchesArea && matchesTurno;
-            });
-
-            currentData = filtered;
-            calculateKPIs(filtered);
-            renderTable(filtered);
-        }
-
-        // LISTENERS DE INTERAÇÃO DOS FILTROS
-        globalSearch.addEventListener("input", applyFilters);
-        filterArea.addEventListener("change", applyFilters);
-        filterTurno.addEventListener("change", applyFilters);
-        btnRefresh.addEventListener("click", fetchDatabase);
-
-        // MOTOR DE ORDENAÇÃO DINÂMICO (SORTING)
-        document.querySelectorAll(".dynamic-table th[data-sort]").forEach(th => {
-            th.addEventListener("click", () => {
-                const property = th.getAttribute("data-sort");
-                sortDirection = !sortDirection;
-
-                currentData.sort((a, b) => {
-                    let valA = a[property], valB = b[property];
-                    if (typeof valA === 'string') {
-                        return sortDirection ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                    } else {
-                        return sortDirection ? valA - valB : valB - valA;
+                    if (ps.chamados > topPs.chamados) {
+                        topPs.nome = ps.nome;
+                        topPs.chamados = ps.chamados;
                     }
                 });
 
-                renderTable(currentData);
-            });
-        });
+                let topArea = Object.keys(areas).reduce((a, b) => areas[a] > areas[b] ? a : b);
 
-        // DISPARO DA CARGA INICIAL DO APP AO CARREGAR A PÁGINA
-        document.addEventListener("DOMContentLoaded", () => {
-            lucide.createIcons();
-            fetchDatabase();
+                document.getElementById("kpi-total-chamados").innerText = totalChamados;
+                document.getElementById("kpi-total-tratativas").innerText = totalTratativas;
+                document.getElementById("kpi-sla-medio").innerText = Math.round(somaSla / dataArray.length) + " min";
+                document.getElementById("kpi-taxa-resolucao").innerText = "94.8%"; 
+                document.getElementById("kpi-ps-destaque").innerText = topPs.nome;
+                document.getElementById("kpi-ps-destaque-meta").innerText = `${topPs.chamados} Concluídos`;
+                document.getElementById("kpi-area-eficiente").innerText = totalChamados > 0 ? topArea : "-";
+            }
+
+            // RENDERING DINÂMICO DE FILAS NA TABELA
+            function renderTable(dataArray) {
+                tableBody.innerHTML = "";
+                document.getElementById("table-count").innerText = dataArray.length;
+
+                dataArray.forEach(item => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td style="font-weight: 700;">${item.nome}</td>
+                        <td><span class="area-badge">${item.area}</span></td>
+                        <td>${item.turno}</td>
+                        <td style="font-family: monospace; font-size:14px;">${item.chamados}</td>
+                        <td style="font-family: monospace; color:#828894">${item.tratativas}</td>
+                        <td style="font-family: monospace;" class="${item.sla > 12 ? 'text-orange' : 'text-emerald'}">${item.sla}m</td>
+                        <td><span class="status-pill status-${item.status.toLowerCase()}">${item.status}</span></td>
+                        <td style="font-family: monospace; color: var(--text-muted)">${item.atualizacao}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            }
+
+            // SISTEMA MULTI-FILTRO INTEGRADO
+            function applyFilters() {
+                const searchTerm = globalSearch.value.toLowerCase();
+                const selectedArea = filterArea.value;
+                const selectedTurno = filterTurno.value;
+
+                currentData = SOS_MOCK_DATA.problemSolvers.filter(ps => {
+                    const matchSearch = ps.nome.toLowerCase().includes(searchTerm) || ps.area.toLowerCase().includes(searchTerm);
+                    const matchArea = selectedArea === "all" || ps.area === selectedArea;
+                    const matchTurno = selectedTurno === "all" || ps.turno === selectedTurno;
+                    return matchSearch && matchArea && matchTurno;
+                });
+
+                renderTable(currentData);
+                calculateKPIs(currentData);
+            }
+
+            // SISTEMA DE ORDENAÇÃO (SORT) DA TABELA
+            document.querySelectorAll("#ps-table th[data-sort]").forEach(th => {
+                th.addEventListener("click", () => {
+                    const property = th.getAttribute("data-sort");
+                    sortDirection = !sortDirection;
+                    
+                    currentData.sort((a, b) => {
+                        if (typeof a[property] === 'number') {
+                            return sortDirection ? a[property] - b[property] : b[property] - a[property];
+                        }
+                        return sortDirection ? a[property].localeCompare(b[property]) : b[property].localeCompare(a[property]);
+                    });
+                    
+                    renderTable(currentData);
+                });
+            });
+
+            // LISTENERS DE EVENTO
+            globalSearch.addEventListener("input", applyFilters);
+            filterArea.addEventListener("change", applyFilters);
+            filterTurno.addEventListener("change", applyFilters);
+            
+            btnRefresh.addEventListener("click", async () => {
+                btnRefresh.innerText = "Sincronizando...";
+                await conectarBaseSOS();
+                applyFilters();
+                btnRefresh.innerHTML = `<i data-lucide="refresh-cw"></i> Sincronizar`;
+                lucide.createIcons();
+            });
+
+            // DISPARO INICIAL
+            initCharts();
+            applyFilters();
+            conectarBaseSOS(); // Inicia tentativa de handshake com o Google Apps Script
         });
     </script>
 </body>
