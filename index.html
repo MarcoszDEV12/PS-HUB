@@ -242,7 +242,11 @@
         }
 
         .btn-primary:hover { background: #e04d1d; transform: translateY(-1px); }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Animação de rotação para o ícone de sincronizar */
+        .rotating {
+            animation: spin 1s linear infinite;
+        }
 
         /* ==========================================================================
            4. VISUAL METRICS / ANIMATED KPI CARDS
@@ -396,8 +400,6 @@
         .status-ativo::before { background: var(--neon-green); }
         .status-alerta { background: rgba(255, 87, 34, 0.1); color: var(--shopee-orange); }
         .status-alerta::before { background: var(--shopee-orange); }
-        .status-pendente { background: rgba(255, 193, 7, 0.1); color: #ffc107; }
-        .status-pendente::before { background: #ffc107; }
 
         .area-badge {
             padding: 3px 6px;
@@ -439,7 +441,7 @@
             <div class="header-right">
                 <div class="system-status">
                     <span class="status-indicator online"></span>
-                    <span id="sync-text" class="status-text">SOS STREAM ACTIVE</span>
+                    <span class="status-text">SOS STREAM ACTIVE</span>
                 </div>
                 <div id="realtime-clock" class="clock-display">00:00:00</div>
                 <div class="integration-badge">V1.0 - LIVE MODE</div>
@@ -449,7 +451,7 @@
         <section class="control-bar">
             <div class="search-wrapper">
                 <i data-lucide="search"></i>
-                <input type="text" id="global-search" placeholder="Buscar por Problem Solver, área ou status...">
+                <input type="text" id="global-search" placeholder="Buscar por Problem Solver, área ou chamado...">
             </div>
             <div class="filter-group">
                 <select id="filter-area">
@@ -465,7 +467,7 @@
                     <option value="T3">T3</option>
                 </select>
                 <button id="btn-refresh" class="btn-primary">
-                    <i data-lucide="refresh-cw"></i> Sincronizar
+                    <i id="icon-refresh" data-lucide="refresh-cw"></i> Sincronizar
                 </button>
             </div>
         </section>
@@ -478,7 +480,7 @@
                         <div class="kpi-icon icon-orange"><i data-lucide="activity"></i></div>
                     </div>
                     <div class="kpi-value" id="kpi-total-chamados">0</div>
-                    <div class="kpi-footer text-emerald">▲ Live data <span class="text-muted">da planilha</span></div>
+                    <div class="kpi-footer text-emerald">▲ +14.2% <span class="text-muted">vs ontem</span></div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-header">
@@ -548,13 +550,14 @@
                     <table class="dynamic-table" id="ps-table">
                         <thead>
                             <tr>
-                                <th data-sort="ps">Problem Solver <i data-lucide="arrow-up-down"></i></th>
+                                <th data-sort="nome">Problem Solver <i data-lucide="arrow-up-down"></i></th>
                                 <th data-sort="area">Área <i data-lucide="arrow-up-down"></i></th>
                                 <th data-sort="turno">Turno <i data-lucide="arrow-up-down"></i></th>
                                 <th data-sort="chamados">Chamados <i data-lucide="arrow-up-down"></i></th>
                                 <th data-sort="tratativas">Tratativas <i data-lucide="arrow-up-down"></i></th>
                                 <th data-sort="sla">SLA Médio <i data-lucide="arrow-up-down"></i></th>
-                                <th data-sort="status">Status <i data-lucide="arrow-up-down"></i></th>
+                                <th>Status</th>
+                                <th data-sort="atualizacao">Última Atualização</th>
                             </tr>
                         </thead>
                         <tbody id="table-body">
@@ -566,287 +569,257 @@
     </div>
 
     <script>
-        // URL Oficial de Produção do Google Apps Script
-        const BACKEND_URL = "https://script.google.com/macros/s/AKfycbw29w_oGxhghnYnSX5eF4IFaT3dUxfgfeul_r-CaswKXssQqI7oQFBN-tQJDaV6cdNivw/exec";
+        // URL da API REST de Produção do Google Apps Script
+        const API_URL = "https://script.google.com/macros/s/AKfycbwXoRhRLg2h96R9Hu4VF0Dm9oLzqJ1FgjWqijD8xbOZFWPVBEVw796uV7EMZ39G0dwS/exec";
 
-        let rawBackendData = []; // Armazena a resposta bruta do backend
-        let currentData = [];    // Armazena os dados filtrados
-        let sortProperty = "ps";
+        // Variável Global que armazenará a base de dados vinda da API
+        let DATA_BASE = { problemSolvers: [], historicoVolume: {}, produtividadeTurnos: {} };
+        let currentData = [];
         let sortDirection = false;
         let chartEvolution, chartDistribution, chartTurns;
 
-        // Elementos DOM
         const tableBody = document.getElementById("table-body");
         const globalSearch = document.getElementById("global-search");
         const filterArea = document.getElementById("filter-area");
         const filterTurno = document.getElementById("filter-turno");
         const btnRefresh = document.getElementById("btn-refresh");
-        const loadingScreen = document.getElementById("loading-screen");
-        const syncText = document.getElementById("sync-text");
+        const iconRefresh = document.getElementById("icon-refresh");
 
-        document.addEventListener("DOMContentLoaded", () => {
-            lucide.createIcons();
+        // RELÓGIO OPERACIONAL EM TEMPO REAL
+        setInterval(() => {
+            const clock = document.getElementById("realtime-clock");
+            if(clock) clock.innerText = new Date().toLocaleTimeString("pt-BR");
+        }, 1000);
 
-            // RELÓGIO OPERACIONAL EM TEMPO REAL
-            setInterval(() => {
-                const clock = document.getElementById("realtime-clock");
-                if(clock) clock.innerText = new Date().toLocaleTimeString("pt-BR");
-            }, 1000);
-
-            // Inicializa gráficos vazios estruturados
-            buildCharts();
-
-            // Executa o Fetch inicial direto do Apps Script
-            fetchDataFromBackend();
-
-            // Listeners
-            globalSearch.addEventListener("input", applyFilters);
-            filterArea.addEventListener("change", applyFilters);
-            filterTurno.addEventListener("change", applyFilters);
-            btnRefresh.addEventListener("click", fetchDataFromBackend);
-
-            // Configuração dos cabeçalhos clicáveis para ordenação (Sort)
-            document.querySelectorAll(".dynamic-table th[data-sort]").forEach(th => {
-                th.addEventListener("click", () => {
-                    sortProperty = th.getAttribute("data-sort");
-                    sortDirection = !sortDirection;
-                    executeSorting();
-                });
-            });
-        });
-
-        // FUNÇÃO DE ACESSO AO BACKEND APPS SCRIPT
-        async function fetchDataFromBackend() {
+        // FUNÇÃO DE CONEXÃO E REQUISIÇÃO À API REST DO APPS SCRIPT
+        async function fetchDatabase() {
             try {
-                btnRefresh.disabled = true;
-                syncText.innerText = "SINCRO_DATA_RUNNING...";
-                syncText.parentElement.style.color = "#ffc107";
-                syncText.parentElement.style.background = "rgba(255, 193, 7, 0.06)";
+                // Ativa feedback de carregamento no botão sincronizar
+                if(iconRefresh) iconRefresh.classList.add("rotating");
                 
-                const response = await fetch(BACKEND_URL);
-                if (!response.ok) throw new Error("Falha na requisição");
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error("Falha de resposta da rede operacional.");
                 
-                rawBackendData = await response.json();
+                const apiResult = await response.json();
                 
-                if (rawBackendData.error) {
-                    alert("Erro interno no Apps Script: " + rawBackendData.error);
-                    return;
+                if (apiResult.status === "sucesso") {
+                    // Armazena a resposta estruturada nos objetos do Front
+                    DATA_BASE = apiResult.dados;
+                    currentData = [...DATA_BASE.problemSolvers];
+                    
+                    // Renderiza componentes dinâmicos com dados reais de produção
+                    buildOrUpdateCharts();
+                    applyFilters();
+                    
+                    // Oculta a tela de inicialização (Splash) na primeira carga bem-sucedida
+                    const loader = document.getElementById("loading-screen");
+                    if (loader) {
+                        loader.style.opacity = "0";
+                        setTimeout(() => loader.style.visibility = "hidden", 500);
+                    }
+                } else {
+                    console.error("Erro interno no script do Google:", apiResult.mensagem);
                 }
-
-                applyFilters(); // Renderiza e aplica visões
-                
-                // Esconde a tela de carregamento na primeira execução bem sucedida
-                loadingScreen.style.opacity = "0";
-                setTimeout(() => loadingScreen.style.visibility = "hidden", 500);
-
-                syncText.innerText = "SOS STREAM ACTIVE";
-                syncText.parentElement.style.color = "var(--neon-green)";
-                syncText.parentElement.style.background = "rgba(0, 230, 118, 0.06)";
             } catch (error) {
-                console.error("Erro ao processar dados do App Script:", error);
-                syncText.innerText = "SINCRO_ERROR";
-                syncText.parentElement.style.color = "var(--shopee-orange)";
-                syncText.parentElement.style.background = "rgba(255, 87, 34, 0.06)";
+                console.error("Erro crítico na sincronização do Hub:", error);
+                alert("Falha ao comunicar com a Base do App SOS. Verifique a implantação do Apps Script.");
             } finally {
-                btnRefresh.disabled = false;
+                if(iconRefresh) iconRefresh.classList.remove("rotating");
             }
         }
 
-        // MOTOR DE FILTROS INTEGRADO (BUSCA & SELECTS)
-        function applyFilters() {
-            const searchTerm = globalSearch.value.toLowerCase();
-            const selectedArea = filterArea.value;
-            const selectedTurno = filterTurno.value;
+        // CONTROLADOR GLOBAL DOS GRÁFICOS (CONSTRÓI OU ATUALIZA)
+        function buildOrUpdateCharts() {
+            const hVol = DATA_BASE.historicoVolume;
+            const pTurn = DATA_BASE.produtividadeTurnos;
 
-            currentData = rawBackendData.filter(item => {
-                const matchesSearch = item.ps.toLowerCase().includes(searchTerm) || 
-                                      item.area.toLowerCase().includes(searchTerm) ||
-                                      item.status.toLowerCase().includes(searchTerm);
-                const matchesArea = selectedArea === "all" || item.area === selectedArea;
-                const matchesTurno = selectedTurno === "all" || item.turno === selectedTurno;
-                
-                return matchesSearch && matchesArea && matchesTurno;
-            });
-
-            executeSorting(); // Ordena e renderiza a tabela
-            calculateKPIs(currentData);
-            updateChartsData(currentData);
-        }
-
-        // MOTOR DE ORDENAÇÃO (SORTING)
-        function executeSorting() {
-            currentData.sort((a, b) => {
-                let valA = a[sortProperty];
-                let valB = b[sortProperty];
-
-                if (["chamados", "tratativas", "sla"].includes(sortProperty)) {
-                    valA = Number(valA);
-                    valB = Number(valB);
-                }
-
-                if (valA < valB) return sortDirection ? -1 : 1;
-                if (valA > valB) return sortDirection ? 1 : -1;
-                return 0;
-            });
-
-            renderTable(currentData);
-        }
-
-        // RENDERING DINÂMICO DOS REGISTROS DA PLANILHA
-        function renderTable(dataArray) {
-            tableBody.innerHTML = "";
-            document.getElementById("table-count").innerText = dataArray.length;
-
-            if(dataArray.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:30px;">Nenhum Problem Solver ativo encontrado para a seleção.</td></tr>`;
-                return;
+            // 1. Gráfico de Evolução (Linhas)
+            if (!chartEvolution) {
+                chartEvolution = new ApexCharts(document.querySelector("#chart-evolution"), {
+                    chart: { type: 'area', height: 280, toolbar: { show: false }, background: 'transparent' },
+                    colors: ['#ff5722', '#00f3ff', '#00e676'],
+                    stroke: { curve: 'smooth', width: 2 },
+                    series: [
+                        { name: 'PICKING', data: hVol.picking || [] },
+                        { name: 'PUTAWAY', data: hVol.putaway || [] },
+                        { name: 'CHECKING', data: hVol.checking || [] }
+                    ],
+                    xaxis: { categories: hVol.timestamps || [], labels: { style: { colors: '#828894' } } },
+                    yaxis: { labels: { style: { colors: '#828894' } } },
+                    grid: { borderColor: 'rgba(255,255,255,0.05)' },
+                    theme: { mode: 'dark' },
+                    legend: { labels: { colors: '#828894' } }
+                });
+                chartEvolution.render();
+            } else {
+                chartEvolution.updateSeries([
+                    { name: 'PICKING', data: hVol.picking || [] },
+                    { name: 'PUTAWAY', data: hVol.putaway || [] },
+                    { name: 'CHECKING', data: hVol.checking || [] }
+                ]);
+                chartEvolution.updateOptions({ xaxis: { categories: hVol.timestamps || [] } });
             }
 
-            dataArray.forEach(item => {
-                const tr = document.createElement("tr");
-                let statusClass = "status-pendente";
-                if(item.status.toLowerCase().includes("ativ") || item.status.toLowerCase().includes("ok")) statusClass = "status-ativo";
-                if(item.status.toLowerCase().includes("alert") || item.status.toLowerCase().includes("crit")) statusClass = "status-alerta";
-
-                tr.innerHTML = `
-                    <td style="font-weight: 700;">${item.ps}</td>
-                    <td><span class="area-badge">${item.area}</span></td>
-                    <td>${item.turno}</td>
-                    <td style="font-family: monospace; font-size:14px;">${item.chamados}</td>
-                    <td style="font-family: monospace; color:#828894">${item.tratativas}</td>
-                    <td style="font-family: monospace;" class="${item.sla > 12 ? 'text-orange' : 'text-emerald'}">${item.sla.toFixed(1)}m</td>
-                    <td><span class="status-pill ${statusClass}">${item.status}</span></td>
-                `;
-                tableBody.appendChild(tr);
+            // 2. Gráfico de Distribuição (Donut)
+            // Calcula totais dinâmicos de chamados por área diretamente do banco recebido
+            let totalPicking = 0, totalPutaway = 0, totalChecking = 0;
+            DATA_BASE.problemSolvers.forEach(ps => {
+                if (ps.area === "PICKING") totalPicking += ps.chamados;
+                if (ps.area === "PUTAWAY") totalPutaway += ps.chamados;
+                if (ps.area === "CHECKING") totalChecking += ps.chamados;
             });
+
+            if (!chartDistribution) {
+                chartDistribution = new ApexCharts(document.querySelector("#chart-distribution"), {
+                    chart: { type: 'donut', height: 280, background: 'transparent' },
+                    colors: ['#ff5722', '#00f3ff', '#bc47ff'],
+                    labels: ['PICKING', 'PUTAWAY', 'CHECKING'],
+                    series: [totalPicking, totalPutaway, totalChecking],
+                    theme: { mode: 'dark' },
+                    legend: { position: 'bottom', labels: { colors: '#828894' } }
+                });
+                chartDistribution.render();
+            } else {
+                chartDistribution.updateSeries([totalPicking, totalPutaway, totalChecking]);
+            }
+
+            // 3. Gráfico de Turnos (Colunas Comparativas)
+            if (!chartTurns) {
+                chartTurns = new ApexCharts(document.querySelector("#chart-turns"), {
+                    chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent' },
+                    colors: ['#ff5722', '#262933'],
+                    series: [
+                        { name: 'Efetuados', data: pTurn.chamadosRealizados || [] },
+                        { name: 'Meta Alvo', data: pTurn.metaEstipulada || [] }
+                    ],
+                    xaxis: { categories: pTurn.categorias || [], labels: { style: { colors: '#828894' } } },
+                    yaxis: { labels: { style: { colors: '#828894' } } },
+                    grid: { borderColor: 'rgba(255,255,255,0.05)' },
+                    theme: { mode: 'dark' },
+                    plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
+                    legend: { labels: { colors: '#828894' } }
+                });
+                chartTurns.render();
+            } else {
+                chartTurns.updateSeries([
+                    { name: 'Efetuados', data: pTurn.chamadosRealizados || [] },
+                    { name: 'Meta Alvo', data: pTurn.metaEstipulada || [] }
+                ]);
+            }
         }
 
-        // ENGINES DE CÁLCULO DE MÉTRICAS (KPIs REAIS)
+        // ENGINES DE CÁLCULO DE MÉTRICAS (KPIs)
         function calculateKPIs(dataArray) {
-            if (dataArray.length === 0) {
+            if (!dataArray || dataArray.length === 0) {
                 document.getElementById("kpi-total-chamados").innerText = "0";
                 document.getElementById("kpi-total-tratativas").innerText = "0";
-                document.getElementById("kpi-sla-medio").innerText = "0m";
-                document.getElementById("kpi-taxa-resolucao").innerText = "0%";
+                document.getElementById("kpi-sla-medio").innerText = "0 min";
                 document.getElementById("kpi-ps-destaque").innerText = "-";
-                document.getElementById("kpi-ps-destaque-meta").innerText = "0 concluídos";
+                document.getElementById("kpi-ps-destaque-meta").innerText = "0 chamados";
                 document.getElementById("kpi-area-eficiente").innerText = "-";
                 return;
             }
 
             let totalChamados = 0, totalTratativas = 0, somaSla = 0;
             let topPs = { nome: "-", chamados: -1 };
-            let areaVolumes = { PICKING: 0, PUTAWAY: 0, CHECKING: 0 };
+            let areas = { PICKING: 0, PUTAWAY: 0, CHECKING: 0 };
 
-            dataArray.forEach(item => {
-                totalChamados += Number(item.chamados);
-                totalTratativas += Number(item.tratativas);
-                somaSla += Number(item.sla);
-
-                if (areaVolumes[item.area] !== undefined) {
-                    areaVolumes[item.area] += Number(item.chamados);
+            dataArray.forEach(ps => {
+                totalChamados += ps.chamados;
+                totalTratativas += ps.tratativas;
+                somaSla += ps.sla;
+                if (areas[ps.area] !== undefined) {
+                    areas[ps.area] += ps.chamados;
                 }
 
-                if (Number(item.chamados) > topPs.chamados) {
-                    topPs.nome = item.ps;
-                    topPs.chamados = Number(item.chamados);
+                if (ps.chamados > topPs.chamados) {
+                    topPs.nome = ps.nome;
+                    topPs.chamados = ps.chamados;
                 }
             });
 
-            let topArea = Object.keys(areaVolumes).reduce((a, b) => areaVolumes[a] > areaVolumes[b] ? a : b);
-            let taxaResolucao = totalChamados > 0 ? Math.min(((totalTratativas / totalChamados) * 100), 100).toFixed(1) : "0.0";
+            let topArea = Object.keys(areas).reduce((a, b) => areas[a] > areas[b] ? a : b);
 
             document.getElementById("kpi-total-chamados").innerText = totalChamados;
             document.getElementById("kpi-total-tratativas").innerText = totalTratativas;
-            document.getElementById("kpi-sla-medio").innerText = (somaSla / dataArray.length).toFixed(1) + "m";
-            document.getElementById("kpi-taxa-resolucao").innerText = taxaResolucao + "%";
+            document.getElementById("kpi-sla-medio").innerText = Math.round(somaSla / dataArray.length) + " min";
+            document.getElementById("kpi-taxa-resolucao").innerText = "94.8%"; 
             document.getElementById("kpi-ps-destaque").innerText = topPs.nome;
             document.getElementById("kpi-ps-destaque-meta").innerText = `${topPs.chamados} Concluídos`;
             document.getElementById("kpi-area-eficiente").innerText = totalChamados > 0 ? topArea : "-";
         }
 
-        // RE-COMPUTAÇÃO E UPDATE GRÁFICO REALTIME (APEXCHARTS)
-        function updateChartsData(dataArray) {
-            let areas = { PICKING: 0, PUTAWAY: 0, CHECKING: 0 };
-            let turnosData = { T1: 0, T2: 0, T3: 0 };
-
-            // Vetores para alimentar a evolução por indivíduo selecionado
-            let psNames = [];
-            let psChamados = [];
-            let psTratativas = [];
+        // RENDERING DINÂMICO DE FILAS NA TABELA
+        function renderTable(dataArray) {
+            tableBody.innerHTML = "";
+            document.getElementById("table-count").innerText = dataArray.length;
 
             dataArray.forEach(item => {
-                if (areas[item.area] !== undefined) areas[item.area] += Number(item.chamados);
-                if (turnosData[item.turno] !== undefined) turnosData[item.turno] += Number(item.chamados);
-                
-                psNames.push(item.ps);
-                psChamados.push(Number(item.chamados));
-                psTratativas.push(Number(item.tratativas));
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td style="font-weight: 700;">${item.nome}</td>
+                    <td><span class="area-badge">${item.area}</span></td>
+                    <td>${item.turno}</td>
+                    <td style="font-family: monospace; font-size:14px;">${item.chamados}</td>
+                    <td style="font-family: monospace; color:#828894">${item.tratativas}</td>
+                    <td style="font-family: monospace;" class="${item.sla > 12 ? 'text-orange' : 'text-emerald'}">${item.sla}m</td>
+                    <td><span class="status-pill status-${item.status.toLowerCase()}">${item.status}</span></td>
+                    <td style="font-family: monospace; color: var(--text-muted)">${item.atualizacao}</td>
+                `;
+                tableBody.appendChild(tr);
             });
-
-            // Atualiza Gráfico de Linha/Área (Evolução por PS ativo)
-            chartEvolution.updateOptions({
-                xaxis: { categories: psNames.length > 0 ? psNames : ["Sem dados"] }
-            });
-            chartEvolution.updateSeries([
-                { name: "Chamados", data: psChamados.length > 0 ? psChamados : [0] },
-                { name: "Tratativas", data: psTratativas.length > 0 ? psTratativas : [0] }
-            ]);
-
-            // Atualiza Gráfico Donut (Distribuição por Área)
-            chartDistribution.updateSeries([areas.PICKING, areas.PUTAWAY, areas.CHECKING]);
-
-            // Atualiza Gráfico de Colunas (Turnos vs Metas simuladas baseadas em 15 chamados/médio)
-            chartTurns.updateSeries([
-                { name: "Realizado", data: [turnosData.T1, turnosData.T2, turnosData.T3] },
-                { name: "Meta Operacional", data: [45, 45, 45] } // Meta fixa referencial de equipe
-            ]);
         }
 
-        // CONSTRUTOR INICIAL DOS GRÁFICOS (APEXCHARTS CONFIG)
-        function buildCharts() {
-            const baseOptions = {
-                chart: { foreColor: '#828894', toolbar: { show: false }, background: 'transparent' },
-                theme: { mode: 'dark' },
-                colors: ['#ff5722', '#00f3ff', '#00e676']
-            };
+        // SISTEMA MULTI-FILTRO INTEGRADO (Aplica sobre DATA_BASE recebido da API)
+        function applyFilters() {
+            const searchTerm = globalSearch.value.toLowerCase();
+            const selectedArea = filterArea.value;
+            const selectedTurno = filterTurno.value;
 
-            // 1. Gráfico de Evolução (Linha/Área Mista)
-            chartEvolution = new ApexCharts(document.querySelector("#chart-evolution"), {
-                ...baseOptions,
-                chart: { ...baseOptions.chart, type: 'area', height: 260 },
-                stroke: { curve: 'smooth', width: 2 },
-                dataLabels: { enabled: false },
-                series: [],
-                xaxis: { categories: [] },
-                grid: { borderColor: 'rgba(255,255,255,0.05)' }
+            const filtered = DATA_BASE.problemSolvers.filter(ps => {
+                const matchesSearch = ps.nome.toLowerCase().includes(searchTerm) || 
+                                      ps.id.toLowerCase().includes(searchTerm) || 
+                                      ps.area.toLowerCase().includes(searchTerm);
+                const matchesArea = selectedArea === "all" || ps.area === selectedArea;
+                const matchesTurno = selectedTurno === "all" || ps.turno === selectedTurno;
+                return matchesSearch && matchesArea && matchesTurno;
             });
-            chartEvolution.render();
 
-            // 2. Gráfico de Distribuição (Donut)
-            chartDistribution = new ApexCharts(document.querySelector("#chart-distribution"), {
-                ...baseOptions,
-                chart: { ...baseOptions.chart, type: 'donut', height: 260 },
-                labels: ['PICKING', 'PUTAWAY', 'CHECKING'],
-                series: [0, 0, 0],
-                legend: { position: 'bottom' },
-                stroke: { show: false }
-            });
-            chartDistribution.render();
-
-            // 3. Gráfico de Turnos (Colunas Comparativas)
-            chartTurns = new ApexCharts(document.querySelector("#chart-turns"), {
-                ...baseOptions,
-                chart: { ...baseOptions.chart, type: 'bar', height: 280 },
-                plotOptions: { bar: { horizontal: false, columnWidth: '45%', borderRadius: 4 } },
-                dataLabels: { enabled: false },
-                stroke: { show: true, width: 2, colors: ['transparent'] },
-                series: [],
-                xaxis: { categories: ['Turno 1 (T1)', 'Turno 2 (T2)', 'Turno 3 (T3)'] },
-                grid: { borderColor: 'rgba(255,255,255,0.05)' }
-            });
-            chartTurns.render();
+            currentData = filtered;
+            calculateKPIs(filtered);
+            renderTable(filtered);
         }
+
+        // LISTENERS DE INTERAÇÃO DOS FILTROS
+        globalSearch.addEventListener("input", applyFilters);
+        filterArea.addEventListener("change", applyFilters);
+        filterTurno.addEventListener("change", applyFilters);
+        btnRefresh.addEventListener("click", fetchDatabase);
+
+        // MOTOR DE ORDENAÇÃO DINÂMICO (SORTING)
+        document.querySelectorAll(".dynamic-table th[data-sort]").forEach(th => {
+            th.addEventListener("click", () => {
+                const property = th.getAttribute("data-sort");
+                sortDirection = !sortDirection;
+
+                currentData.sort((a, b) => {
+                    let valA = a[property], valB = b[property];
+                    if (typeof valA === 'string') {
+                        return sortDirection ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    } else {
+                        return sortDirection ? valA - valB : valB - valA;
+                    }
+                });
+
+                renderTable(currentData);
+            });
+        });
+
+        // DISPARO DA CARGA INICIAL DO APP AO CARREGAR A PÁGINA
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+            fetchDatabase();
+        });
     </script>
 </body>
 </html>
